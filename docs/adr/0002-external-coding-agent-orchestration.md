@@ -44,4 +44,6 @@
 
 ## 实现状态
 
-本决定已接受，代码迁移尚未实施。当前仍有 [内置模型客户端](../../designer/designer.go)、工作台生成流程和 [外部审查执行器](../../check/reviewer.go)；它们属于后续需要调整的实现。现有 `review-request`、`review-import` 可供外部 agent 使用，但不代表设计生成、源码分析及对话同步已经完成外部接入。当前可运行功能以 [README](../../README.md) 为准。
+本决定已于 2026-09-21 实施。[designer](../../designer/designer.go) 不再包含模型 HTTP 客户端，只保留请求与响应协议、响应 Schema 和分析依据校验；外部审查执行器与 `review -reviewer` 命令已移除，程序不再读取 `ARCHDESIGN_AI_*` 配置。新增 `design-request`、`proposal-import`、`proposal-show`、`proposal-accept`、`proposal-discard` 命令，以及工作台 `POST /api/design-request`、`POST /api/proposal-import` 接口；页面入口改为「导出设计请求」「导出源码分析请求」和「导入 agent 提案」。请求保存在 `.architecture/requests/`，导入时核对项目绑定、草稿指纹、基准版本和源码指纹。`review-request`、`review-import` 继续供 agent 使用。
+
+skill 安装、选中对象向对话同步、每轮任务后的自动检查与修复尚未接入。当前可运行功能和交换协议以 [README](../../README.md) 为准；浏览器回归自 2026-09-22 起由固定响应替身扮演 agent，见[核心用户旅程](../core-user-journeys.md)。

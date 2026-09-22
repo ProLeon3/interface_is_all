@@ -1,5 +1,7 @@
 # 独立工作台实现与验收
 
+> 2026-09-21 决策更新：按 [ADR-0002](adr/0002-external-coding-agent-orchestration.md)，模型调用已从工作台移除。「模型与提案协议」一节的内置客户端、`POST /api/proposals` 与环境变量配置保留为实施当时的记录；当前由 `POST /api/design-request` 导出请求、`POST /api/proposal-import` 导入 agent 提案，见 [README](../README.md)。浏览器回归脚本已于 2026-09-22 改为固定响应替身扮演 agent。
+
 实现日期：2026-09-20。产品依据为[独立图形工作台实现依据](../独立图形工作台实现依据.md)，该文件的差距表保留立项时现状。
 
 ## 已实现流程
