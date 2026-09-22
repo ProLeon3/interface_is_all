@@ -1,0 +1,93 @@
+{
+  "request_id": "2d48031afd753b249bbc342ef17a8160361d4cb5e6ace7fe144674f21f10340d",
+  "summary": "在现状基准上加入截止日期能力：cli-command 的 add 增加可选 --due，list 输出逾期标记与截止日期；task-service 负责解析与校验截止日期、判断逾期并按「逾期优先、其余按 ID」排序，旧文档缺少截止日期字段时仍可读取；storage 不变。按需求把三条依赖方向写成禁止规则。模块、接口与协作 ID 全部沿用。",
+  "design": {
+    "schema_version": 1,
+    "modules": [
+      {
+        "id": "cli",
+        "root": "cli",
+        "responsibility": "解析 -file 参数与 add、done、list 子命令（含 add 的可选 --due），校验命令形态、ID 与日期字符串格式，调用 task 完成业务操作，并把结果或错误转换为标准输出、错误输出和退出状态。"
+      },
+      {
+        "id": "task",
+        "root": "task",
+        "responsibility": "维护待办领域规则：标题校验、稳定唯一 ID 分配、可选截止日期的解析与校验、逾期判断、幂等完成、未完成任务按「逾期优先、其余按 ID」排序查询，以及待办 JSON 文档（version、next_id、tasks，任务可选 due）的解析与结构校验；通过 storage 读写数据文件。"
+      },
+      {
+        "id": "storage",
+        "root": "storage",
+        "responsibility": "提供与待办领域无关的 JSON 文档读取与原子写入：文件不存在时保留 os.ErrNotExist 供调用方初始化，JSON 语法损坏时拒绝读取与覆盖，写入使用同目录临时文件、同步后 rename 替换并同步目录。"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行入口",
+        "description": "Run 接收命令行参数与输出流，处理 -file 与 add、done、list 子命令并返回退出状态；add 支持可选的 --due 截止日期，list 标注逾期任务。",
+        "semantics": {
+          "inputs": "参数列表：可选 -file <路径>（默认 tasks.json）；add [--due YYYY-MM-DD] <标题…>（标题多个参数用空格拼接）；done <ID>（正整数）；list。",
+          "outputs": "add 输出「ID\\t标题」，有截止日期时追加「\\t截止 YYYY-MM-DD」；done 输出「已完成/已经完成 ID\\t标题」；list 每行一个未完成任务，逾期任务排最前并以「逾期」前缀标注，每行含 ID、标题及截止日期（有的话）；成功退出 0。",
+          "errors": "无子命令、未知命令、done 参数个数或 ID 格式错误、list 带多余参数、--due 不是 YYYY-MM-DD 格式，以及 task 返回的任何错误，都写入 stderr 并退出 2；-h 退出 0。"
+        }
+      },
+      {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务",
+        "description": "包级函数 Add、Complete、Pending 提供创建（可带截止日期）、幂等完成与未完成列表查询；逾期以调用时的本地日期判断，截止日期当天不算逾期；每次调用完整读取数据文件，只在业务校验通过且状态变化时写回。",
+        "semantics": {
+          "inputs": "每个函数接收数据文件路径；Add 另接收标题与可选截止日期（YYYY-MM-DD 或空）；Complete 另接收任务 ID。",
+          "outputs": "Add 返回新任务（ID 取自 next_id，含可选截止日期）；Complete 返回任务和本次是否发生变化，重复完成返回 false 且不写文件，逾期任务同样可完成；Pending 返回未完成任务，逾期任务在前（各按 ID 升序），未逾期与无截止日期的任务随后按 ID 升序，每项带是否逾期的标记；文件不存在时视为空文档。",
+          "errors": "空白标题、截止日期格式无效或不是有效日期、任务编号用尽、任务不存在、数据文件结构无效（版本、编号、重复 ID、空标题、多余内容、非法 due 值）以及 storage 读写错误均返回 error；发生错误时不写文件。缺少 due 字段的旧文档视为没有截止日期，不报错。"
+        }
+      },
+      {
+        "id": "storage-json-document",
+        "module_id": "storage",
+        "name": "JSON 文档存储",
+        "description": "ReadJSON 完整读取文件并检查 JSON 语法；WriteJSON 只接受有效 JSON，写入前拒绝覆盖已损坏的目标文件，用同目录临时文件原子替换。",
+        "semantics": {
+          "inputs": "ReadJSON 接收文件路径；WriteJSON 接收文件路径和完整 JSON 字节。",
+          "outputs": "ReadJSON 返回完整文件内容；WriteJSON 在数据落盘、rename 替换并同步目录后返回 nil。",
+          "errors": "文件不存在返回包装了 os.ErrNotExist 的错误；读取失败或 JSON 无效返回错误且不修改原文件；WriteJSON 拒绝无效 JSON、拒绝覆盖损坏文档，创建目录、写入、同步、rename 失败均返回错误并清理临时文件。"
+        }
+      }
+    ],
+    "forbidden_dependencies": [
+      {
+        "id": "task-must-not-depend-on-cli",
+        "from": "task",
+        "to": "cli",
+        "reason": "task 独立承载待办业务规则，不得依赖命令行参数、终端输出或 cli 的实现细节。"
+      },
+      {
+        "id": "cli-must-not-depend-on-storage",
+        "from": "cli",
+        "to": "storage",
+        "reason": "cli 只能通过 task-service 使用待办业务能力，不得直接读写数据文件或绕过 task 的校验。"
+      },
+      {
+        "id": "storage-must-not-depend-on-task",
+        "from": "storage",
+        "to": "task",
+        "reason": "storage 只提供中立的 JSON 文档读写，不得了解待办模型、截止日期或引用 task。"
+      }
+    ],
+    "collaborations": [
+      {
+        "id": "cli-uses-task-service",
+        "from": "cli",
+        "interface_id": "task-service",
+        "purpose": "Run 在 add、done、list 分支分别调用 task.Add（带可选截止日期）、task.Complete、task.Pending，并把返回值（含逾期标记）格式化输出。"
+      },
+      {
+        "id": "task-uses-storage-json-document",
+        "from": "task",
+        "interface_id": "storage-json-document",
+        "purpose": "task.read 调用 storage.ReadJSON 读取文档，task.save 调用 storage.WriteJSON 原子写回。"
+      }
+    ]
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "request_id": "d088337aff4187c6af1e5fa6e40b74d7b32c42c59d71d09501d6b9d8b121feb7",
+  "summary": "还原待办示例的三层现状：cli 只做参数解析与输出并把操作交给 task；task 承载全部待办规则与文档结构校验，通过 storage 读写文件；storage 提供与领域无关的 JSON 读取与原子写入。两条协作都有直接调用语句依据。未观察到架构问题；禁止依赖规则留空，由用户对照需要决定。",
+  "design": {
+    "schema_version": 1,
+    "modules": [
+      {
+        "id": "cli",
+        "root": "cli",
+        "responsibility": "解析 -file 参数与 add、done、list 子命令，校验命令形态与 ID 格式，调用 task 完成业务操作，并把结果或错误转换为标准输出、错误输出和退出状态。"
+      },
+      {
+        "id": "task",
+        "root": "task",
+        "responsibility": "维护待办领域规则：标题校验、稳定唯一 ID 分配、幂等完成、未完成任务按 ID 顺序查询，以及待办 JSON 文档（version、next_id、tasks）的解析与结构校验；通过 storage 读写数据文件。"
+      },
+      {
+        "id": "storage",
+        "root": "storage",
+        "responsibility": "提供与待办领域无关的 JSON 文档读取与原子写入：文件不存在时保留 os.ErrNotExist 供调用方初始化，JSON 语法损坏时拒绝读取与覆盖，写入使用同目录临时文件、同步后 rename 替换并同步目录。"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行入口",
+        "description": "Run 接收命令行参数与输出流，处理 -file 与 add、done、list 子命令，返回进程退出状态；main 直接调用它。",
+        "semantics": {
+          "inputs": "参数列表：可选 -file <路径>（默认 tasks.json）；add <标题…>（多个参数用空格拼接）；done <ID>（正整数）；list。",
+          "outputs": "add 输出「ID\\t标题」；done 输出「已完成/已经完成 ID\\t标题」；list 每行输出一个未完成任务；成功退出 0。",
+          "errors": "无子命令、未知命令、done 参数个数或 ID 格式错误、list 带多余参数，以及 task 返回的任何错误，都写入 stderr 并退出 2；-h 退出 0。"
+        }
+      },
+      {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务",
+        "description": "包级函数 Add、Complete、Pending 提供创建、幂等完成与未完成列表查询；每次调用都完整读取指定数据文件，只在业务校验通过且状态变化时写回。",
+        "semantics": {
+          "inputs": "每个函数接收数据文件路径；Add 另接收标题；Complete 另接收任务 ID。",
+          "outputs": "Add 返回新任务（ID 取自 next_id）；Complete 返回任务和本次是否发生变化，重复完成返回 false 且不写文件；Pending 返回按 ID 升序的未完成任务列表，文件不存在时视为空文档。",
+          "errors": "空白标题、任务编号用尽、任务不存在、数据文件结构无效（版本、编号、重复 ID、空标题、多余内容）以及 storage 读写错误均返回 error；发生错误时不写文件。"
+        }
+      },
+      {
+        "id": "storage-json-document",
+        "module_id": "storage",
+        "name": "JSON 文档存储",
+        "description": "ReadJSON 完整读取文件并检查 JSON 语法；WriteJSON 只接受有效 JSON，写入前拒绝覆盖已损坏的目标文件，用同目录临时文件原子替换。",
+        "semantics": {
+          "inputs": "ReadJSON 接收文件路径；WriteJSON 接收文件路径和完整 JSON 字节。",
+          "outputs": "ReadJSON 返回完整文件内容；WriteJSON 在数据落盘、rename 替换并同步目录后返回 nil。",
+          "errors": "文件不存在返回包装了 os.ErrNotExist 的错误；读取失败或 JSON 无效返回错误且不修改原文件；WriteJSON 拒绝无效 JSON、拒绝覆盖损坏文档，创建目录、写入、同步、rename 失败均返回错误并清理临时文件。"
+        }
+      }
+    ],
+    "forbidden_dependencies": [],
+    "collaborations": [
+      {
+        "id": "cli-uses-task-service",
+        "from": "cli",
+        "interface_id": "task-service",
+        "purpose": "Run 在 add、done、list 分支分别直接调用 task.Add、task.Complete、task.Pending，并把返回值格式化输出。"
+      },
+      {
+        "id": "task-uses-storage-json-document",
+        "from": "task",
+        "interface_id": "storage-json-document",
+        "purpose": "task.read 调用 storage.ReadJSON 读取文档，task.save 调用 storage.WriteJSON 原子写回。"
+      }
+    ]
+  },
+  "analysis": {
+    "evidence": [
+      {
+        "kind": "module",
+        "id": "cli",
+        "status": "supported",
+        "explanation": "cli/main.go 的 Run 只做 flag 解析、子命令分发和输出格式化，所有业务操作都转交 task 包。",
+        "locations": [
+          {"file": "cli/main.go", "line": 18, "column": 1, "end_line": 72}
+        ]
+      },
+      {
+        "kind": "module",
+        "id": "task",
+        "status": "supported",
+        "explanation": "task/task.go 的 read/save 解析与校验待办文档，Add、Complete、Pending 实现全部业务规则。",
+        "locations": [
+          {"file": "task/task.go", "line": 31, "column": 1, "end_line": 68},
+          {"file": "task/task.go", "line": 71, "column": 1, "end_line": 127}
+        ]
+      },
+      {
+        "kind": "module",
+        "id": "storage",
+        "status": "supported",
+        "explanation": "storage/json.go 只处理文件读取、JSON 语法检查与原子写入，不引用 task 或 cli，也不解释文档字段。",
+        "locations": [
+          {"file": "storage/json.go", "line": 13, "column": 1, "end_line": 61}
+        ]
+      },
+      {
+        "kind": "interface",
+        "id": "cli-command",
+        "status": "supported",
+        "explanation": "Run 是公开函数，处理 -file、add、done、list 并返回退出码；main 在第 15 行调用它。",
+        "locations": [
+          {"file": "cli/main.go", "line": 18, "column": 1, "end_line": 72}
+        ]
+      },
+      {
+        "kind": "interface",
+        "id": "task-service",
+        "status": "supported",
+        "explanation": "Add、Complete、Pending 三个公开函数构成对外能力，均先 read 再按规则操作，只在状态变化时 save。",
+        "locations": [
+          {"file": "task/task.go", "line": 71, "column": 1, "end_line": 90},
+          {"file": "task/task.go", "line": 93, "column": 1, "end_line": 112},
+          {"file": "task/task.go", "line": 115, "column": 1, "end_line": 127}
+        ]
+      },
+      {
+        "kind": "interface",
+        "id": "storage-json-document",
+        "status": "supported",
+        "explanation": "ReadJSON 与 WriteJSON 是公开函数；WriteJSON 先调用 ReadJSON 拒绝覆盖损坏文件，再用 CreateTemp、Sync、Rename 与目录 Sync 完成原子写入。",
+        "locations": [
+          {"file": "storage/json.go", "line": 13, "column": 1, "end_line": 22},
+          {"file": "storage/json.go", "line": 26, "column": 1, "end_line": 61}
+        ]
+      },
+      {
+        "kind": "collaboration",
+        "id": "cli-uses-task-service",
+        "status": "supported",
+        "explanation": "cli/main.go 第 35、48、61 行分别直接调用 task.Add、task.Complete、task.Pending；目标声明位于 task/task.go。",
+        "locations": [
+          {"file": "cli/main.go", "line": 35, "column": 1, "end_line": 35},
+          {"file": "cli/main.go", "line": 48, "column": 1, "end_line": 48},
+          {"file": "cli/main.go", "line": 61, "column": 1, "end_line": 61},
+          {"file": "task/task.go", "line": 71, "column": 1, "end_line": 71},
+          {"file": "task/task.go", "line": 93, "column": 1, "end_line": 93},
+          {"file": "task/task.go", "line": 115, "column": 1, "end_line": 115}
+        ]
+      },
+      {
+        "kind": "collaboration",
+        "id": "task-uses-storage-json-document",
+        "status": "supported",
+        "explanation": "task/task.go 第 32 行直接调用 storage.ReadJSON，第 67 行直接调用 storage.WriteJSON；目标声明位于 storage/json.go。",
+        "locations": [
+          {"file": "task/task.go", "line": 32, "column": 1, "end_line": 32},
+          {"file": "task/task.go", "line": 67, "column": 1, "end_line": 67},
+          {"file": "storage/json.go", "line": 13, "column": 1, "end_line": 13},
+          {"file": "storage/json.go", "line": 26, "column": 1, "end_line": 26}
+        ]
+      }
+    ],
+    "issues": [],
+    "suggestions": [
+      {
+        "description": "Complete 在任务不存在时返回 fmt.Errorf 生成的普通错误，调用方无法用 errors.Is 把「不存在」与「文档损坏」区分开；若后续需要区分退出码或提示，可引入哨兵错误。现状忠实记录，不作为架构问题。",
+        "locations": [
+          {"file": "task/task.go", "line": 111, "column": 1, "end_line": 111}
+        ]
+      }
+    ],
+    "uncertainties": [
+      "*_test.go 不在本次读取范围内，未据此判断任何行为。",
+      "WriteJSON 的原子性与目录同步只从代码顺序推断，多进程并发写同一文件的实际行为无法静态核实。"
+    ]
+  }
+}

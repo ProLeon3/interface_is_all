@@ -1,6 +1,6 @@
 # 模块与接口设计工作台
 
-> 2026-09-21 已确认并实施新方向：由外部 coding agent 主导流程并调用本程序，所有 LLM 推理由 agent 承担；程序保留源码事实采集、确定性检查、图形编辑、提案审阅、存储与用户确认。决定见 [ADR-0002](docs/adr/0002-external-coding-agent-orchestration.md)。内置模型客户端与外部审查执行器已移除，设计生成与源码分析改为导出请求文件、导入 agent 提案；skill 安装与自动触发仍待接入。
+> 2026-09-21 已确认并实施新方向：由外部 coding agent 主导流程并调用本程序，所有 LLM 推理由 agent 承担；程序保留源码事实采集、确定性检查、图形编辑、提案审阅、存储与用户确认。决定见 [ADR-0002](docs/adr/0002-external-coding-agent-orchestration.md)。内置模型客户端与外部审查执行器已移除，设计生成与源码分析改为导出请求文件、导入 agent 提案。2026-09-22 已确定 skill 接入形态：回合制、程序零改动、确认只在浏览器、遵循约束只写目标项目规则文件，见 [ADR-0003](docs/adr/0003-turn-based-skill-integration.md)、[ADR-0004](docs/adr/0004-design-compliance-via-project-rules-file.md) 与 [coding agent 接入实现依据](coding%20agent%20接入实现依据.md)；同日已实现 `interface_design` skill，安装与使用见[在 coding agent 中使用 interface_design skill](#在-coding-agent-中使用-interface_design-skill)，实现与验收记录见 [docs/agent-skill.md](docs/agent-skill.md)。
 
 本项目提供本地浏览器工作台、Go 核心库和命令行工具：保存模块职责、接口能力及禁止依赖规则，由用户审阅确认后作为检查基准，并为外部 AI 工具提供能力审查协议。当前存储与检查边界见[设计存储与验证](设计存储与验证.md)。
 
@@ -10,7 +10,7 @@
 
 已有确认基准的项目也可以重新分析最新源码，与旧基准和已保存草稿对照，接受后再明确确认新版本。使用方式与存储保护见[已有基准项目重新分析](docs/reanalysis.md)。
 
-skill 安装、对话选中上下文同步、自动交接与自动修复尚未实现；当前通过手动交换请求与响应文件接入 coding agent，协议见[与 coding agent 交换请求和提案](#与-coding-agent-交换请求和提案)。依赖检查通过不表示接口协作、业务功能或模型语义已经通过验收。
+coding agent 通过 `interface_design` skill 接入：在目标项目里输入 `/interface_design @spec.md`，skill 按回合导出请求、生成提案并导入工作台，用户在浏览器审阅确认，确认后 skill 把遵循约束写入项目规则文件；见[在 coding agent 中使用 interface_design skill](#在-coding-agent-中使用-interface_design-skill)。底层仍是可手动使用的文件交换协议，见[与 coding agent 交换请求和提案](#与-coding-agent-交换请求和提案)。接入范围、阶段判断规则与验收依据见 [coding agent 接入实现依据](coding%20agent%20接入实现依据.md)，实现与验收记录见 [docs/agent-skill.md](docs/agent-skill.md)；按 ADR-0004，自动检查与自动修复不再是产品承诺，改为写入目标项目规则文件的指令。依赖检查通过不表示接口协作、业务功能或模型语义已经通过验收。
 
 ## 启动浏览器工作台
 
@@ -86,6 +86,34 @@ go build -buildvcs=false -o /tmp/archdesign ./cmd/archdesign
 # 构建并启动；服务只监听本机，不读取任何模型配置。
 bash scripts/start-workbench.sh -project /你的项目目录 -timeout 5m
 ```
+
+## 在 coding agent 中使用 interface_design skill
+
+`skills/interface_design/` 是一份回合制、可重入的 skill（Claude Code 与 Codex 共用的 SKILL.md 格式），把上一节的请求导出、提案导入与规则文件写入串成 `/interface_design @spec.md` 一条命令的流程。决策见 [ADR-0003](docs/adr/0003-turn-based-skill-integration.md)、[ADR-0004](docs/adr/0004-design-compliance-via-project-rules-file.md)，实现选择、逐条阶段规则的验证记录与 UNVERIFIED 项见 [docs/agent-skill.md](docs/agent-skill.md)。
+
+安装（只需 bash 与 python3，不引入 Node 依赖）：
+
+```sh
+# 1. 让 archdesign 进入 PATH；也可以用环境变量 ARCHDESIGN_BIN 指向已构建的二进制。
+go install ./cmd/archdesign
+
+# 2. 安装为软链：~/.agents/skills 放绝对软链，~/.claude/skills 按本机惯例放相对软链。
+ln -s "$(pwd)/skills/interface_design" ~/.agents/skills/interface_design
+ln -s ../../.agents/skills/interface_design ~/.claude/skills/interface_design
+```
+
+Claude Code 通过 `~/.claude/skills/` 发现该 skill（已验证）。Codex 是否扫描 `~/.agents/skills` 未查证，见 [docs/agent-skill.md](docs/agent-skill.md) 的 UNVERIFIED 列表。
+
+使用：在目标项目目录打开 coding agent，输入 `/interface_design @spec.md`（`spec.md` 的内容作为需求；没有文件时 skill 会问一次）。skill 每次被唤醒都做同样的事：
+
+1. 找到 `archdesign`，检查 `127.0.0.1:8090` 是否已有工作台；没有则以当前项目为 `-project` 在后台启动 `archdesign serve`，把地址告诉用户。只监听本机，不传任何模型配置。
+2. 运行 `scripts/state.py` 从 `.architecture/` 重建阶段，不依赖对话记忆。
+3. 按阶段判断规则只做一件事：有 `go.mod` 且无确认基准，先导出源码分析请求并按[源码分析指令](docs/agent-prompts/source-analysis.md)生成现状提案；有基准或不是 Go 项目，以需求导出设计请求并按[设计指令](docs/agent-prompts/design.md)生成提案；浏览器导出而未应答的调整请求先应答；已有待审阅提案时按用户的修改意见以它为父提案继续调整，没有意见就提醒去浏览器。导出失败与导入被拒绝都原样转述程序输出并停止。
+4. 回合结束时告诉用户：工作台地址、提案 ID、下一步在浏览器做什么、做完回来说「继续」。
+
+接受提案与确认版本只在浏览器完成，skill 不运行 `confirm` 与 `proposal-accept`；`proposal-discard` 只在用户明确要求放弃当前提案时运行。用户确认后，下一次唤醒发现 `confirmed.json` 的 `revision` 比规则文件标记块记录的新，skill 把设计遵循约束写入目标项目的规则文件：已有 `CLAUDE.md` 或 `AGENTS.md` 就写已有的（两个都有则都写），都没有就新建 `AGENTS.md`；使用 `<!-- interface_design:begin revision=… -->` 与 `<!-- interface_design:end -->` 之间的块幂等替换，块外内容不动，不提交 git。这段约束是给后续会话的指令，程序只能硬检查禁止的直接包依赖，不能据此声称设计被强制遵守。
+
+辅助脚本都带 `--help`：`scripts/state.py` 输出阶段与下一步；`scripts/export-request.py` 组装意图并导出请求；`scripts/write-rules.py` 写规则文件标记块；`scripts/start-workbench.sh` 启动或复用工作台。
 
 ## 命令行快速运行
 
@@ -246,6 +274,7 @@ coding agent 可以直接调用这两个命令完成审查闭环，审查指令�
 | `workbench` | 本地 HTTP 接口、嵌入式浏览器页面、同源和会话边界 |
 | `scripts/workbench-journey.js` | 使用真实浏览器验证编辑、确认与检查旅程 |
 | `scripts/fixed-agent.js` | 浏览器回归中在页面内扮演 coding agent 的固定响应替身，不代表真实模型效果 |
+| `skills/interface_design` | coding agent 的回合制 skill：SKILL.md、状态/导出/规则写入/工作台启动脚本与响应格式样例；验收见 [docs/agent-skill.md](docs/agent-skill.md) |
 
 ```sh
 go test ./...
