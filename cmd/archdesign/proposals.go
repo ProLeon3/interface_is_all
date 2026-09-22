@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 
-	"interfaceisall/internal/jsonfile"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // 外部 agent 使用文件交换；所有写入复用工作台的校验、锁和确认边界。

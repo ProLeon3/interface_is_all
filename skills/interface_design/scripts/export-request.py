@@ -26,13 +26,18 @@ import sys
 import tempfile
 
 SUMMARY_LIMIT = 400
+# 找不到 archdesign 时的统一安装提示；与 state.py、start-workbench.sh、SKILL.md 保持同一段文字。
+INSTALL_HINT = (
+    "安装方式：运行 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest`（需要 Go 1.22+），"
+    "并确保 `$(go env GOPATH)/bin` 在 PATH 上；或设置环境变量 ARCHDESIGN_BIN 指向已构建的二进制。"
+)
 
 
 def skill_paths():
-    """解析 skill 目录与本仓库根目录，用于定位 docs/agent-prompts 指令文档。"""
+    """解析 skill 目录（通过软链的真实路径），指令文档随 skill 一起分发在 <skill-dir>/references/。"""
     scripts_dir = os.path.dirname(os.path.realpath(__file__))
-    repo_dir = os.path.realpath(os.path.join(scripts_dir, "..", "..", ".."))
-    prompts = os.path.join(repo_dir, "docs", "agent-prompts")
+    skill_dir = os.path.dirname(scripts_dir)
+    prompts = os.path.join(skill_dir, "references")
     return {
         "design": os.path.join(prompts, "design.md"),
         "source_analysis": os.path.join(prompts, "source-analysis.md"),
@@ -161,7 +166,7 @@ def main():
 
     binary = resolve_archdesign()
     if not binary:
-        json.dump({"ok": False, "exit_code": 2, "stderr": "找不到 archdesign：请设置 ARCHDESIGN_BIN 或在本仓库运行 go install ./cmd/archdesign"}, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump({"ok": False, "exit_code": 2, "stderr": "找不到 archdesign。" + INSTALL_HINT}, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
         return 2
     work_dir = args.work_dir or os.path.join(tempfile.gettempdir(), "interface_design")

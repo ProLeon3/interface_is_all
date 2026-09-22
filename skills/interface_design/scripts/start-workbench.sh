@@ -47,9 +47,9 @@ bin="${ARCHDESIGN_BIN:-}"
 if [ -z "$bin" ]; then
   bin=$(command -v archdesign || true)
 fi
-repo_dir=$(cd "$(dirname "$(readlink -f "$0")")/../../.." && pwd -P)
 if [ -z "$bin" ] || [ ! -x "$bin" ]; then
-  echo "找不到可执行的 archdesign。安装方式：在 $repo_dir 运行 go install ./cmd/archdesign，或设置 ARCHDESIGN_BIN。" >&2
+  # 与 state.py、export-request.py、SKILL.md 保持同一段安装提示。
+  echo "找不到可执行的 archdesign。安装方式：运行 \`go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest\`（需要 Go 1.22+），并确保 \`\$(go env GOPATH)/bin\` 在 PATH 上；或设置环境变量 ARCHDESIGN_BIN 指向已构建的二进制。" >&2
   exit 2
 fi
 

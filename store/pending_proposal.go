@@ -5,8 +5,8 @@ import (
 	"errors"
 	"os"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
 )
 
 // 普通设计提案的审阅状态独立保存，外部导入后新窗口也能发现。

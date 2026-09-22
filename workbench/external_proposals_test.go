@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"interfaceisall/design"
-	"interfaceisall/designer"
-	"interfaceisall/internal/testproject"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/designer"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // 请求和响应通过真实 HTTP 处理器交换，固定内容只验证程序协议。

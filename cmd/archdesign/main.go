@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/jsonfile"
-	"interfaceisall/store"
-	"interfaceisall/workbench"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/store"
+	"github.com/ProLeon3/interface_is_all/workbench"
 )
 
 const usage = `用法：archdesign <命令> [选项]

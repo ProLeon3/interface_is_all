@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/testproject"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 func TestConcurrentProposalAcceptanceCannotOverwriteBaseline(t *testing.T) {

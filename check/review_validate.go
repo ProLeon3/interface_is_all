@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"interfaceisall/design"
+	"github.com/ProLeon3/interface_is_all/design"
 )
 
 // ValidateReview 核对接口覆盖、模块归属和证据位置，不将语义推断升级成确定性结论。

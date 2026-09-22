@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
 )
 
 func TestCollaborationsValidateReferencesAndRemainSeparateFromBans(t *testing.T) {

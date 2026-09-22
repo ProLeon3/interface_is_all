@@ -7,8 +7,8 @@ import (
 	"path"
 	"strconv"
 
-	"interfaceisall/design"
-	"interfaceisall/source"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/source"
 )
 
 // directCapabilityUse 核对可静态连接到接口依据的包成员使用，不证明运行时行为。

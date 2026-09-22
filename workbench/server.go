@@ -20,12 +20,12 @@ import (
 	"strings"
 	"time"
 
-	"interfaceisall/check"
-	"interfaceisall/design"
-	"interfaceisall/internal/jsonfile"
-	"interfaceisall/internal/projectpath"
-	"interfaceisall/source"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/check"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/internal/projectpath"
+	"github.com/ProLeon3/interface_is_all/source"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // 静态资源随 Go 二进制分发，使用工作台无需安装 Node 或访问 CDN。

@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
 	"github.com/santhosh-tekuri/jsonschema/v5"
-	"interfaceisall/internal/jsonfile"
 )
 
 // Schema 内嵌唯一的结构定义，命令行和保存接口使用同一份规则。

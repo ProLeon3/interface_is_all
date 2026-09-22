@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"interfaceisall/internal/testproject"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 func TestConfirmationRequiresReviewedDraftAndCurrentBaseline(t *testing.T) {

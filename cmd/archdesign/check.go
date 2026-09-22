@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"interfaceisall/check"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/check"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 func runCheck(ctx context.Context, s *store.Store, command, project, tags, requestFile, responseFile string, write func(any) int, stderr io.Writer) int {

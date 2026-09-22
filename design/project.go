@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"interfaceisall/internal/projectpath"
+	"github.com/ProLeon3/interface_is_all/internal/projectpath"
 )
 
 // ValidateProject 在纯设计校验之外检查已有目录，未实现的模块仍可保存。

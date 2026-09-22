@@ -1,10 +1,10 @@
 package workbench
 
 import (
-	"interfaceisall/design"
-	"interfaceisall/designer"
-	"interfaceisall/internal/testproject"
-	"interfaceisall/source"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/designer"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/source"
 	"testing"
 )
 

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
 )
 
 // InitialAnalysis 兼容原首次接入记录，也保存后续源码分析的当前来源。

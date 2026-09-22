@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/testproject"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // scopedRequest 模拟不同标签页固定自己的项目路径，同一个服务可以同时处理两个项目。

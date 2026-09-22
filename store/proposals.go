@@ -11,9 +11,9 @@ import (
 	"regexp"
 	"time"
 
-	"interfaceisall/design"
-	"interfaceisall/designer"
-	"interfaceisall/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/designer"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
 )
 
 // Proposal 是不可变的审阅证据，保存需求、修改意图和前后设计；自身没有确认效力。

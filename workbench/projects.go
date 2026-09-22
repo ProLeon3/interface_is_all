@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"interfaceisall/internal/projectpath"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/internal/projectpath"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // session 不读取设计文件，初始项目设计损坏时仍能取得令牌并选择其他目录。

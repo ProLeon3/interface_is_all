@@ -2,9 +2,9 @@ package check
 
 import (
 	"context"
-	"interfaceisall/design"
-	"interfaceisall/source"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/source"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // Options 沿用公共源码扫描的构建选项，保持检查接口兼容。

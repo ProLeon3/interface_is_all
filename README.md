@@ -1,6 +1,6 @@
 # 模块与接口设计工作台
 
-> 2026-09-21 已确认并实施新方向：由外部 coding agent 主导流程并调用本程序，所有 LLM 推理由 agent 承担；程序保留源码事实采集、确定性检查、图形编辑、提案审阅、存储与用户确认。决定见 [ADR-0002](docs/adr/0002-external-coding-agent-orchestration.md)。内置模型客户端与外部审查执行器已移除，设计生成与源码分析改为导出请求文件、导入 agent 提案。2026-09-22 已确定 skill 接入形态：回合制、程序零改动、确认只在浏览器、遵循约束只写目标项目规则文件，见 [ADR-0003](docs/adr/0003-turn-based-skill-integration.md)、[ADR-0004](docs/adr/0004-design-compliance-via-project-rules-file.md) 与 [coding agent 接入实现依据](coding%20agent%20接入实现依据.md)；同日已实现 `interface_design` skill，安装与使用见[在 coding agent 中使用 interface_design skill](#在-coding-agent-中使用-interface_design-skill)，实现与验收记录见 [docs/agent-skill.md](docs/agent-skill.md)。
+> 2026-09-21 已确认并实施新方向：由外部 coding agent 主导流程并调用本程序，所有 LLM 推理由 agent 承担；程序保留源码事实采集、确定性检查、图形编辑、提案审阅、存储与用户确认。决定见 [ADR-0002](docs/adr/0002-external-coding-agent-orchestration.md)。内置模型客户端与外部审查执行器已移除，设计生成与源码分析改为导出请求文件、导入 agent 提案。2026-09-22 已确定 skill 接入形态：回合制、程序零改动、确认只在浏览器、遵循约束只写目标项目规则文件，见 [ADR-0003](docs/adr/0003-turn-based-skill-integration.md)、[ADR-0004](docs/adr/0004-design-compliance-via-project-rules-file.md) 与 [coding agent 接入实现依据](coding%20agent%20接入实现依据.md)；同日已实现 `interface_design` skill，安装与使用见[在 coding agent 中使用 interface_design skill](#在-coding-agent-中使用-interface_design-skill)，实现与验收记录见 [docs/agent-skill.md](docs/agent-skill.md)。2026-09-22 又决定以 `npx skills add ProLeon3/interface_is_all` 分发 skill、以 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest` 安装程序，见 [ADR-0005](docs/adr/0005-distribute-skill-via-skills-cli.md)、[skill 分发安装实现依据](skill%20分发安装实现依据.md) 与 [docs/skill-distribution.md](docs/skill-distribution.md)。
 
 本项目提供本地浏览器工作台、Go 核心库和命令行工具：保存模块职责、接口能力及禁止依赖规则，由用户审阅确认后作为检查基准，并为外部 AI 工具提供能力审查协议。当前存储与检查边界见[设计存储与验证](设计存储与验证.md)。
 
@@ -41,7 +41,7 @@ go build -buildvcs=false -o /tmp/archdesign ./cmd/archdesign
 
 ### 已有 Go 项目初次接入
 
-选择项目根目录含 `go.mod`、尚无确认设计的项目，在「分析已有代码」方式下点击「导出源码分析请求」。已有草稿时先展开「调整设计」，再选择代码分析方式。无需先手写设计；请求文件包含本次读取的 Go 源码、公开声明候选、包依赖、构建清单和响应 Schema。把请求交给 coding agent，按[源码分析指令](docs/agent-prompts/source-analysis.md)生成响应，再在「设计工具」中「导入 agent 提案」。打开目录本身不扫描，也不导出。
+选择项目根目录含 `go.mod`、尚无确认设计的项目，在「分析已有代码」方式下点击「导出源码分析请求」。已有草稿时先展开「调整设计」，再选择代码分析方式。无需先手写设计；请求文件包含本次读取的 Go 源码、公开声明候选、包依赖、构建清单和响应 Schema。把请求交给 coding agent，按[源码分析指令](skills/interface_design/references/source-analysis.md)生成响应，再在「设计工具」中「导入 agent 提案」。打开目录本身不扫描，也不导出。
 
 在图上核对模块、能力和协作；详情中的「初次分析依据」可以查看分析时的原始源码。图下分别列出读取范围、排除文件、问题、建议与不确定项。包导入只证明依赖，未观察到某条依赖不会自动变成禁止规则。间接调用或动态关系不能静态关联时标为不确定。
 
@@ -59,7 +59,7 @@ go build -buildvcs=false -o /tmp/archdesign ./cmd/archdesign
 
 ### 与 coding agent 交换请求和提案
 
-程序不内置模型客户端，也不读取模型配置；推理、提示词和模型选择由外部 coding agent 自行管理。工作台和命令行只负责导出请求、校验响应并保存为待审阅提案。agent 可参考 [docs/agent-prompts](docs/agent-prompts/) 中的设计、源码分析与能力审查指令。
+程序不内置模型客户端，也不读取模型配置；推理、提示词和模型选择由外部 coding agent 自行管理。工作台和命令行只负责导出请求、校验响应并保存为待审阅提案。agent 可参考 [skills/interface_design/references](skills/interface_design/references/) 中的设计、源码分析与能力审查指令。
 
 | `kind` | 用途 | 请求内容 |
 | --- | --- | --- |
@@ -89,26 +89,36 @@ bash scripts/start-workbench.sh -project /你的项目目录 -timeout 5m
 
 ## 在 coding agent 中使用 interface_design skill
 
-`skills/interface_design/` 是一份回合制、可重入的 skill（Claude Code 与 Codex 共用的 SKILL.md 格式），把上一节的请求导出、提案导入与规则文件写入串成 `/interface_design @spec.md` 一条命令的流程。决策见 [ADR-0003](docs/adr/0003-turn-based-skill-integration.md)、[ADR-0004](docs/adr/0004-design-compliance-via-project-rules-file.md)，实现选择、逐条阶段规则的验证记录与 UNVERIFIED 项见 [docs/agent-skill.md](docs/agent-skill.md)。
+`skills/interface_design/` 是一份回合制、可重入的 skill（Claude Code 与 Codex 共用的 SKILL.md 格式），把上一节的请求导出、提案导入与规则文件写入串成 `/interface_design @spec.md` 一条命令的流程。决策见 [ADR-0003](docs/adr/0003-turn-based-skill-integration.md)、[ADR-0004](docs/adr/0004-design-compliance-via-project-rules-file.md) 与 [ADR-0005](docs/adr/0005-distribute-skill-via-skills-cli.md)，实现选择、逐条阶段规则的验证记录与 UNVERIFIED 项见 [docs/agent-skill.md](docs/agent-skill.md)；分发与安装方式的实现选择、验证记录与 UNVERIFIED 项见 [docs/skill-distribution.md](docs/skill-distribution.md)。
 
-安装（只需 bash 与 python3，不引入 Node 依赖）：
+安装只需两条命令。需要 Go 1.22 或更高版本、python3、bash，以及 Node.js 自带的 `npx`；脚本依赖 bash 的 `/dev/tcp`，不支持 Windows 原生环境。
 
 ```sh
-# 1. 让 archdesign 进入 PATH；也可以用环境变量 ARCHDESIGN_BIN 指向已构建的二进制。
-go install ./cmd/archdesign
+# 1. 安装 archdesign 到 $(go env GOPATH)/bin，并确保该目录在 PATH 上；也可以用环境变量 ARCHDESIGN_BIN 指向已构建的二进制。
+go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest
 
-# 2. 安装为软链：~/.agents/skills 放绝对软链，~/.claude/skills 按本机惯例放相对软链。
+# 2. 在目标项目根目录安装 skill（项目范围）：复制到 ./.agents/skills/interface_design/，并建软链 ./.claude/skills/interface_design。
+npx skills add ProLeon3/interface_is_all
+
+# 或全局安装（所有项目可用）：位置改为 ~/.agents/skills/ 与 ~/.claude/skills/。
+npx skills add ProLeon3/interface_is_all -g
+```
+
+`npx skills add` 只复制 `skills/interface_design/` 这一个目录（`SKILL.md`、`scripts/`、`references/`、`examples/`），不编译程序，也没有安装钩子；安装位置会写 `skills-lock.json` 记录来源与内容哈希，之后用 `npx skills update` 更新。Claude Code 通过 `.claude/skills/interface_design` 软链发现该 skill；Codex 直接读 `.agents/skills`，是否会扫描 `~/.agents/skills` 未查证，见 [docs/agent-skill.md](docs/agent-skill.md) 的 UNVERIFIED 列表。仓库推送到 GitHub 之前 `owner/repo` 形式不可用，可以用本仓库的绝对路径作为来源。
+
+在本仓库开发 skill 时可以不经 CLI，直接把源目录软链到用户目录，改动即时生效：
+
+```sh
+go install ./cmd/archdesign
 ln -s "$(pwd)/skills/interface_design" ~/.agents/skills/interface_design
 ln -s ../../.agents/skills/interface_design ~/.claude/skills/interface_design
 ```
-
-Claude Code 通过 `~/.claude/skills/` 发现该 skill（已验证）。Codex 是否扫描 `~/.agents/skills` 未查证，见 [docs/agent-skill.md](docs/agent-skill.md) 的 UNVERIFIED 列表。
 
 使用：在目标项目目录打开 coding agent，输入 `/interface_design @spec.md`（`spec.md` 的内容作为需求；没有文件时 skill 会问一次）。skill 每次被唤醒都做同样的事：
 
 1. 找到 `archdesign`，检查 `127.0.0.1:8090` 是否已有工作台；没有则以当前项目为 `-project` 在后台启动 `archdesign serve`，把地址告诉用户。只监听本机，不传任何模型配置。
 2. 运行 `scripts/state.py` 从 `.architecture/` 重建阶段，不依赖对话记忆。
-3. 按阶段判断规则只做一件事：有 `go.mod` 且无确认基准，先导出源码分析请求并按[源码分析指令](docs/agent-prompts/source-analysis.md)生成现状提案；有基准或不是 Go 项目，以需求导出设计请求并按[设计指令](docs/agent-prompts/design.md)生成提案；浏览器导出而未应答的调整请求先应答；已有待审阅提案时按用户的修改意见以它为父提案继续调整，没有意见就提醒去浏览器。导出失败与导入被拒绝都原样转述程序输出并停止。
+3. 按阶段判断规则只做一件事：有 `go.mod` 且无确认基准，先导出源码分析请求并按[源码分析指令](skills/interface_design/references/source-analysis.md)生成现状提案；有基准或不是 Go 项目，以需求导出设计请求并按[设计指令](skills/interface_design/references/design.md)生成提案；浏览器导出而未应答的调整请求先应答；已有待审阅提案时按用户的修改意见以它为父提案继续调整，没有意见就提醒去浏览器。导出失败与导入被拒绝都原样转述程序输出并停止。
 4. 回合结束时告诉用户：工作台地址、提案 ID、下一步在浏览器做什么、做完回来说「继续」。
 
 接受提案与确认版本只在浏览器完成，skill 不运行 `confirm` 与 `proposal-accept`；`proposal-discard` 只在用户明确要求放弃当前提案时运行。用户确认后，下一次唤醒发现 `confirmed.json` 的 `revision` 比规则文件标记块记录的新，skill 把设计遵循约束写入目标项目的规则文件：已有 `CLAUDE.md` 或 `AGENTS.md` 就写已有的（两个都有则都写），都没有就新建 `AGENTS.md`；使用 `<!-- interface_design:begin revision=… -->` 与 `<!-- interface_design:end -->` 之间的块幂等替换，块外内容不动，不提交 git。这段约束是给后续会话的指令，程序只能硬检查禁止的直接包依赖，不能据此声称设计被强制遵守。
@@ -239,7 +249,7 @@ JSON 解析还拒绝重复键、未知字段和尾随内容。关系错误提供
   -request /tmp/review-request.json -file /tmp/review-response.json
 ```
 
-coding agent 可以直接调用这两个命令完成审查闭环，审查指令见 [docs/agent-prompts/capability-review.md](docs/agent-prompts/capability-review.md)。程序不启动任何外部审查程序，也不读取模型凭据。
+coding agent 可以直接调用这两个命令完成审查闭环，审查指令见 [skills/interface_design/references/capability-review.md](skills/interface_design/references/capability-review.md)。程序不启动任何外部审查程序，也不读取模型凭据。
 
 请求包含已确认设计、源码快照、构建范围、模块及依赖清单、公开候选、中文审查指令和响应 Schema。`request_id` 绑定这些内容；`go.mod`、已有的 `go.sum` 和 `vendor/modules.txt` 变化也会使旧审查过期。指令要求逐接口关联实现，检查未设计的新增能力与职责偏离，明确不得仅凭名称和参数变化判定违规。实现参考使用的 [JSON Schema 校验库](https://pkg.go.dev/github.com/santhosh-tekuri/jsonschema/v5@v5.3.1) 同样校验模型响应结构。
 
@@ -274,7 +284,7 @@ coding agent 可以直接调用这两个命令完成审查闭环，审查指令�
 | `workbench` | 本地 HTTP 接口、嵌入式浏览器页面、同源和会话边界 |
 | `scripts/workbench-journey.js` | 使用真实浏览器验证编辑、确认与检查旅程 |
 | `scripts/fixed-agent.js` | 浏览器回归中在页面内扮演 coding agent 的固定响应替身，不代表真实模型效果 |
-| `skills/interface_design` | coding agent 的回合制 skill：SKILL.md、状态/导出/规则写入/工作台启动脚本与响应格式样例；验收见 [docs/agent-skill.md](docs/agent-skill.md) |
+| `skills/interface_design` | coding agent 的回合制 skill：SKILL.md、状态/导出/规则写入/工作台启动脚本、`references/` 下的三份 agent 指令与响应格式样例；验收见 [docs/agent-skill.md](docs/agent-skill.md)，分发见 [docs/skill-distribution.md](docs/skill-distribution.md) |
 
 ```sh
 go test ./...

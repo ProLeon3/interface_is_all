@@ -27,9 +27,10 @@ BLOCK_END = "<!-- interface_design:end -->"
 RULE_FILE_CANDIDATES = ("CLAUDE.md", "AGENTS.md")
 
 
-def repo_dir():
+def skill_dir():
+    """脚本所在的 skill 目录（通过软链的真实路径）；能力审查指令随 skill 分发在其 references/ 下。"""
     scripts_dir = os.path.dirname(os.path.realpath(__file__))
-    return os.path.realpath(os.path.join(scripts_dir, "..", "..", ".."))
+    return os.path.dirname(scripts_dir)
 
 
 def load_confirmed(project):
@@ -114,7 +115,8 @@ def main():
         json.dump({"ok": False, "error": error}, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
         return 2
-    review_prompt = os.path.join(repo_dir(), "docs", "agent-prompts", "capability-review.md")
+    # 标记块里写已安装 skill 的绝对路径：后续实现会话从目标项目任意位置都能直接打开这份指令。
+    review_prompt = os.path.join(skill_dir(), "references", "capability-review.md")
     block = render_block(confirmed, review_prompt)
     results = []
     for name in target_files(project, args.files):

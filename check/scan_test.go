@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"interfaceisall/check"
-	"interfaceisall/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/check"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
 )
 
 func TestMainPackageScanDoesNotRequireWorkingVCSMetadata(t *testing.T) {

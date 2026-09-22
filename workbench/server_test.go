@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"interfaceisall/check"
-	"interfaceisall/design"
-	"interfaceisall/internal/testproject"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/check"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // 通过实际 HTTP 处理器覆盖浏览器行为契约，测试不依赖真实端口或模型。

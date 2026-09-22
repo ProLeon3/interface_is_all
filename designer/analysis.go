@@ -5,8 +5,8 @@ import (
 	"path"
 	"strings"
 
-	"interfaceisall/design"
-	"interfaceisall/source"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/source"
 )
 
 // Analysis 与设计约束分开保存，源码位置校验不代表语义已得到程序证明。

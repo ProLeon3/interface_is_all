@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/store"
 	"github.com/santhosh-tekuri/jsonschema/v5"
-	"interfaceisall/design"
-	"interfaceisall/internal/jsonfile"
-	"interfaceisall/store"
 )
 
-// 这里只描述交换约定；外部 agent 的审查提示词独立放在 docs/agent-prompts。
+// 这里只描述交换约定；外部 agent 的审查提示词独立放在 skills/interface_design/references/capability-review.md，随 skill 一起分发。
 const reviewInstructions = "逐项返回接口关联和源码依据，结果保持待确认；输出须符合 response_schema。"
 
 //go:embed review.schema.json

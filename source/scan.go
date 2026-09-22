@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/projectpath"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/projectpath"
 )
 
 type Options struct {

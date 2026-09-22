@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"interfaceisall/design"
+	"github.com/ProLeon3/interface_is_all/design"
 )
 
 // 首版提供完整文件，不截断函数或抽样后宣称覆盖完整项目。

@@ -10,10 +10,10 @@ import (
 	"os"
 	"strings"
 
-	"interfaceisall/design"
-	"interfaceisall/designer"
-	"interfaceisall/internal/jsonfile"
-	"interfaceisall/source"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/designer"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/source"
 )
 
 // DesignRequestOptions 只描述意图；源码、原设计及版本由程序从项目读取。

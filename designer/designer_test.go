@@ -2,7 +2,7 @@ package designer
 
 import (
 	"encoding/json"
-	"interfaceisall/source"
+	"github.com/ProLeon3/interface_is_all/source"
 	"strings"
 	"testing"
 )

@@ -44,18 +44,21 @@ BLOCK_END = "<!-- interface_design:end -->"
 RULE_FILE_CANDIDATES = ("CLAUDE.md", "AGENTS.md")
 DEFAULT_ADDR = "127.0.0.1:8090"
 SUMMARY_LIMIT = 300
+# 找不到 archdesign 时的统一安装提示；三个脚本与 SKILL.md 保持同一段文字。
+INSTALL_HINT = (
+    "安装方式：运行 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest`（需要 Go 1.22+），"
+    "并确保 `$(go env GOPATH)/bin` 在 PATH 上；或设置环境变量 ARCHDESIGN_BIN 指向已构建的二进制。"
+)
 
 
 def skill_paths():
-    """解析脚本所在的 skill 目录与本仓库根目录（通过软链的真实路径）。"""
+    """解析脚本所在的 skill 目录（通过软链的真实路径）；指令文档随 skill 一起分发，固定在 <skill-dir>/references/。"""
     scripts_dir = os.path.dirname(os.path.realpath(__file__))
     skill_dir = os.path.dirname(scripts_dir)
-    repo_dir = os.path.realpath(os.path.join(skill_dir, "..", ".."))
-    prompts = os.path.join(repo_dir, "docs", "agent-prompts")
+    prompts = os.path.join(skill_dir, "references")
     return {
         "skill_dir": skill_dir,
         "scripts_dir": scripts_dir,
-        "repo_dir": repo_dir,
         "prompt_docs": {
             "design": os.path.join(prompts, "design.md"),
             "source_analysis": os.path.join(prompts, "source-analysis.md"),
@@ -64,12 +67,9 @@ def skill_paths():
     }
 
 
-def resolve_archdesign(repo_dir):
+def resolve_archdesign():
     """优先环境变量 ARCHDESIGN_BIN，否则 PATH 上的 archdesign；再用 help 子命令确认可执行。"""
-    hint = (
-        "安装方式：在本仓库 %s 运行 `go install ./cmd/archdesign`（需要 Go 1.22+，"
-        "并确保 `$(go env GOPATH)/bin` 在 PATH 上）；或设置环境变量 ARCHDESIGN_BIN 指向已构建的二进制。" % repo_dir
-    )
+    hint = INSTALL_HINT
     env = os.environ.get("ARCHDESIGN_BIN", "").strip()
     if env:
         info = {"path": env, "source": "ARCHDESIGN_BIN", "available": False, "install_hint": hint}
@@ -315,7 +315,11 @@ def build_state(args):
     }
     if not os.path.isdir(project):
         state["warnings"].append("目标项目目录不存在：%s" % project)
-    state["archdesign"] = resolve_archdesign(paths["repo_dir"])
+    # 指令文档应随 skill 一起安装；缺失说明安装不完整，明确告警而不是静默输出一个不存在的路径。
+    for label, path in paths["prompt_docs"].items():
+        if not os.path.isfile(path):
+            warnings.append("指令文档 %s 不存在：%s（skill 安装不完整，请重新安装 interface_design skill）" % (label, path))
+    state["archdesign"] = resolve_archdesign()
     state["workbench"] = workbench_status(args.addr)
     binary = state["archdesign"]["path"] if state["archdesign"]["available"] else None
 

@@ -24,8 +24,8 @@
 | 事项 | 默认值 |
 | --- | --- |
 | 目标 harness | Claude Code 与 Codex 共用的 SKILL.md 格式 |
-| skill 位置与名称 | 源码放在本仓库 `skills/interface_design/`，安装为软链 `~/.agents/skills/interface_design`；名称 `interface_design` |
-| 程序二进制 | 要求 `archdesign` 在 PATH 上，可用环境变量 `ARCHDESIGN_BIN` 覆盖；安装方式为在本仓库运行 `go install ./cmd/archdesign` |
+| skill 位置与名称 | 源码放在本仓库 `skills/interface_design/`，安装为软链 `~/.agents/skills/interface_design`（2026-09-22 起改用 `npx skills add ProLeon3/interface_is_all` 安装，软链只用于本仓库开发）；名称 `interface_design` |
+| 程序二进制 | 要求 `archdesign` 在 PATH 上，可用环境变量 `ARCHDESIGN_BIN` 覆盖；安装方式为 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest`（2026-09-22 起改为从 GitHub 安装，见 [skill 分发安装实现依据](skill%20分发安装实现依据.md)） |
 | 工作台生命周期 | 唤醒时检查默认地址是否已在监听；没有则以当前项目为 `-project` 在后台启动，并把地址告诉用户 |
 | 需求输入 | `@spec.md` 的内容作为请求的 `requirement`；没有给文件时向用户问一次 |
 | 规则文件写入 | 只在检测到新确认版本后写入；使用带起止标记的块幂等替换；块内记录对应的 `revision`；不提交 git；写完在对话中说明 |
@@ -36,8 +36,8 @@
 
 1. **发起**：用户输入 `/interface_design @spec.md`。skill 找到 `archdesign`，确认工作台在运行，读取项目状态。
 2. **判断阶段**：按下文规则决定本回合动作。项目有 `go.mod` 且没有确认基准时进入现状分析；全新项目或已有基准时进入需求设计。
-3. **现状分析（仅有代码无基准）**：skill 导出 `initial_analysis` 请求；agent 依据请求内的源码，按[源码分析指令](docs/agent-prompts/source-analysis.md)生成响应并导入为待审阅提案；告知用户工作台地址与下一步，回合结束。用户在浏览器核对源码依据，「接受并审阅确认」现状基准（或先接受为草稿、手改后再审阅并确认），回到对话说「继续」。
-4. **需求设计**：skill 先对照当前设计判断需求是否已被覆盖，已覆盖就告知用户、不出提案；否则以需求为 `requirement` 导出 `design` 请求，提案只改与需求相关的对象，无关对象文字逐字保留；agent 按[设计指令](docs/agent-prompts/design.md)生成响应并导入；告知用户地址与下一步，回合结束。用户看图后若要修改，可以在对话直接说，也可以在浏览器选中对象、填写意图、导出调整请求后回到对话说「继续」。skill 应答未处理的请求或把对话文字作为意图，以待审阅提案为父提案继续导出、导入，直到用户接受并在浏览器确认。
+3. **现状分析（仅有代码无基准）**：skill 导出 `initial_analysis` 请求；agent 依据请求内的源码，按[源码分析指令](skills/interface_design/references/source-analysis.md)生成响应并导入为待审阅提案；告知用户工作台地址与下一步，回合结束。用户在浏览器核对源码依据，「接受并审阅确认」现状基准（或先接受为草稿、手改后再审阅并确认），回到对话说「继续」。
+4. **需求设计**：skill 先对照当前设计判断需求是否已被覆盖，已覆盖就告知用户、不出提案；否则以需求为 `requirement` 导出 `design` 请求，提案只改与需求相关的对象，无关对象文字逐字保留；agent 按[设计指令](skills/interface_design/references/design.md)生成响应并导入；告知用户地址与下一步，回合结束。用户看图后若要修改，可以在对话直接说，也可以在浏览器选中对象、填写意图、导出调整请求后回到对话说「继续」。skill 应答未处理的请求或把对话文字作为意图，以待审阅提案为父提案继续导出、导入，直到用户接受并在浏览器确认。
 5. **确认后**：skill 在下一次唤醒时发现 `confirmed.json` 的版本比规则文件标记块记录的新，写入或替换规则文件标记块，汇报确认版本与约束内容。
 6. **后续需求**：用户再次以新需求发起，流程从第 4 步开始，提案相对已确认基准展示差异。
 7. **实现**：由规则文件引导后续会话读取基准、按设计实现、运行 `archdesign check` 并汇报、需要时导出能力审查请求并应答。skill 不组织实现过程。
@@ -77,7 +77,7 @@ skill 每次被唤醒都按以下顺序检查，命中第一条即执行对应�
 | 交换协议 | `design-request`、`proposal-import`、`proposal-show`、`proposal-discard` 已实现，请求落在 `.architecture/requests/` | 无程序改动；skill 按阶段规则调用 |
 | 写锁与阶段约束 | `store/design_requests.go` 的 `checkProposalParent` 强制源码分析确认前不能导出设计请求 | 无程序改动；skill 的阶段判断与之一致 |
 | 工作台 | `archdesign serve` 每 3 秒轮询文件，自动展示命令行导入的提案，页面可导出调整请求 | 无程序改动；skill 负责启动与告知地址 |
-| agent 指令 | `docs/agent-prompts/` 有设计、源码分析、能力审查三份指令 | skill 引用它们，不复制正文 |
+| agent 指令 | `skills/interface_design/references/` 有设计、源码分析、能力审查三份指令（2026-09-22 随 skill 分发从 docs 目录移入） | skill 引用它们，不复制正文 |
 | skill | 不存在 | 新建 `skills/interface_design/SKILL.md` 与必要的辅助脚本，安装软链 |
 | 规则文件约定 | 只有交接包内的 `instructions` 文字 | skill 生成带标记的规则块 |
 

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"interfaceisall/design"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 func Design() design.Design {

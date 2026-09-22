@@ -4,6 +4,8 @@
 
 本文区分「程序链路已验证」与「真实 agent 生成质量」：前者由本文的命令记录支撑；后者只能在真实使用中观察，见文末 UNVERIFIED 列表。
 
+> 2026-09-22 补充：本文写成后同日实施了 skill 分发方案。三份指令文档已从 `docs/agent-prompts/` 移到 `skills/interface_design/references/`，`archdesign` 的安装命令改为 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest`，skill 改用 `npx skills add ProLeon3/interface_is_all` 安装。下文交付物表、「安装与发现」与验证记录里的旧路径、软链与旧命令是当时的原始记录，保留原文不改；新方案的实现选择与验证记录见 [docs/skill-distribution.md](skill-distribution.md)。
+
 ## 交付物
 
 | 路径 | 作用 |

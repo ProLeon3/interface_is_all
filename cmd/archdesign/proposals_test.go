@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"interfaceisall/design"
-	"interfaceisall/designer"
-	"interfaceisall/internal/testproject"
-	"interfaceisall/source"
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/designer"
+	"github.com/ProLeon3/interface_is_all/internal/testproject"
+	"github.com/ProLeon3/interface_is_all/source"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 func TestCLIExternalProposalWorkflow(t *testing.T) {

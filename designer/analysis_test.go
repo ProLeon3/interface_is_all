@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"interfaceisall/design"
-	"interfaceisall/source"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/source"
 )
 
 // 两个真实形状的源码片段用于检验出处约束；不把固定语义解释当成真实模型证明。

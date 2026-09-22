@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"interfaceisall/design"
-	"interfaceisall/internal/jsonfile"
-	"interfaceisall/internal/projectpath"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/internal/projectpath"
 )
 
 var (

@@ -7,7 +7,7 @@ import (
 	"math"
 	"os"
 
-	"interfaceisall/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
 )
 
 // Layout 与模块职责无关，修改坐标不会创建或确认设计版本。

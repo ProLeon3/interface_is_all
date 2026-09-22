@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/internal/jsonfile"
+	"github.com/ProLeon3/interface_is_all/source"
 	"github.com/santhosh-tekuri/jsonschema/v5"
-	"interfaceisall/design"
-	"interfaceisall/internal/jsonfile"
-	"interfaceisall/source"
 )
 
 // Selection 保留用户实际点选的对象类型和稳定 ID，不能让模型猜测上下文。

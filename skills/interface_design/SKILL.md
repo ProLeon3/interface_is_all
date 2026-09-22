@@ -2,13 +2,17 @@
 name: interface_design
 description: 结合目标项目的已有代码与需求描述做模块与接口的架构设计，导出请求、生成设计提案并导入本地工作台（archdesign），让用户在浏览器审阅、修改、确认；确认后把设计遵循约束写入项目规则文件。用户输入 /interface_design @spec.md、要求设计或调整模块划分与接口、要为新需求做架构设计、要先分析已有 Go 代码的现状基准、或在浏览器操作后回到对话说「继续」时使用。回合制、可重入：每次唤醒都从 .architecture/ 重建阶段。
 argument-hint: "[@spec.md 或需求文字；浏览器操作完成后可只说「继续」]"
+compatibility: 需要 Go 1.22 或更高版本（用 go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest 安装 archdesign）、python3 与 bash；工作台只监听 127.0.0.1:8090。脚本依赖 bash 的 /dev/tcp，不支持 Windows 原生环境。
+metadata:
+  version: "0.1.0"
+  author: ProLeon3
 ---
 
 # interface_design
 
-把 `/interface_design @spec.md` 落到本地程序 `archdesign` 上：你负责读代码、按需求生成设计提案；程序负责导出请求、校验并保存提案、在浏览器展示给用户审阅、由用户接受与确认；确认后你把遵循约束写入项目规则文件。决策依据见 `<skill-dir>/../../docs/adr/0003-turn-based-skill-integration.md` 与 `0004-design-compliance-via-project-rules-file.md`。
+把 `/interface_design @spec.md` 落到本地程序 `archdesign` 上：你负责读代码、按需求生成设计提案；程序负责导出请求、校验并保存提案、在浏览器展示给用户审阅、由用户接受与确认；确认后你把遵循约束写入项目规则文件。决策依据是源仓库 `docs/adr/` 下的 ADR-0003（回合制 skill 接入）与 ADR-0004（遵循约束只写目标项目规则文件），在线查看：https://github.com/ProLeon3/interface_is_all/tree/main/docs/adr 。
 
-`<skill-dir>` 指本 SKILL.md 所在目录（安装后通常是 `~/.claude/skills/interface_design` 或 `~/.agents/skills/interface_design`，软链指向本仓库 `skills/interface_design/`）。脚本在 `<skill-dir>/scripts/`，指令文档在 `<skill-dir>/../../docs/agent-prompts/`（脚本输出里也给出绝对路径）。
+`<skill-dir>` 指本 SKILL.md 所在目录。脚本在 `<skill-dir>/scripts/`，指令文档在 `<skill-dir>/references/`，响应格式样例在 `<skill-dir>/examples/`；脚本输出里也给出这些文件的绝对路径。用 `npx skills add ProLeon3/interface_is_all` 安装后，`<skill-dir>` 通常是目标项目内的 `.agents/skills/interface_design`（项目范围）或 `~/.agents/skills/interface_design`（全局安装，`-g`），`.claude/skills/interface_design` 是指向它的软链；在源仓库开发时是 `skills/interface_design/`。
 
 ## 硬性边界（先读，全程有效）
 
@@ -16,7 +20,7 @@ argument-hint: "[@spec.md 或需求文字；浏览器操作完成后可只说「
 2. **永远不运行 `archdesign confirm` 和 `archdesign proposal-accept`。** 接受提案与确认版本是用户在浏览器的动作。`proposal-discard` 只在用户明确说要放弃/重来当前提案时运行。
 3. **有 `go.mod` 且没有确认基准的项目必须先走 `initial_analysis`**，现状基准在浏览器确认前不得导出 `design` 请求。
 4. **导出失败照实转述并停止。** 源码分析请求导出失败（含超过 1 MiB 上限、加载不完整）时，原样转述程序返回的原因与范围，不截断源码、不分批、不改用其他请求类型。导入被拒绝时原样转述错误，不修改请求文件、不伪造或改写 `request_id`、不绕过校验。
-5. **生成的响应必须遵守请求文件里的 `response_schema` 和对应指令文档**（`docs/agent-prompts/design.md` 或 `source-analysis.md`）。
+5. **生成的响应必须遵守请求文件里的 `response_schema` 和对应指令文档**（`<skill-dir>/references/design.md` 或 `<skill-dir>/references/source-analysis.md`）。
 6. **规则文件只写标记块**，块外内容一律不动；不提交 git。
 7. **不得声称设计已被强制遵守。** 程序只能硬检查被禁止的直接包依赖；接口能力与职责偏离依赖 agent 主动做能力审查和用户核对。
 8. 工作台只监听本机；你不读取、不传递任何模型配置或凭据给程序。
@@ -43,7 +47,7 @@ argument-hint: "[@spec.md 或需求文字；浏览器操作完成后可只说「
 
 ### `archdesign_unavailable`
 
-转述 `archdesign.error` 与 `archdesign.install_hint`（在本仓库运行 `go install ./cmd/archdesign`，或设置 `ARCHDESIGN_BIN`），停止。
+转述 `archdesign.error` 与 `archdesign.install_hint`（运行 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest` 并确保 `$(go env GOPATH)/bin` 在 PATH 上，或设置 `ARCHDESIGN_BIN` 指向已构建的二进制），停止。
 
 ### `answer_requests`（存在未应答的请求）
 

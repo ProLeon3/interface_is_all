@@ -2,8 +2,8 @@
 package check
 
 import (
-	"interfaceisall/design"
-	"interfaceisall/source"
+	"github.com/ProLeon3/interface_is_all/design"
+	"github.com/ProLeon3/interface_is_all/source"
 )
 
 // 事实类型由 source 统一维护，旧检查和审查协议保持原 JSON 形状。

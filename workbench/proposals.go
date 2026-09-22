@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"interfaceisall/store"
+	"github.com/ProLeon3/interface_is_all/store"
 )
 
 // designRequest 只导出已绑定版本的上下文，不启动模型或 agent。
