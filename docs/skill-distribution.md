@@ -50,7 +50,7 @@ npx skills add ProLeon3/interface_is_all
 5. Windows 限制写在 SKILL.md 的 `compatibility` 与 README 的安装说明里。
 6. 补了 ADR-0005：module 路径改为 GitHub 路径会长期约束仓库位置，值得记录。
 7. `coding agent 接入实现依据.md` 第 27 行「skill 位置与名称」的默认值（软链安装）也随之过时，依据文档只列了第 28 行；两行都补了一句注记，原文保留。
-8. 验收第 4 项发现 `skills/interface_design/examples/initial-analysis-response.json` 的依据行号对应提交 ebc2832 时的 `examples/todo` 源码，提交 360eff6 给 todo 加了截止日期后行号已变，直接导入被程序拒绝。本次只在验收副本里修正依据位置（相当于 agent 修正自己的输出），仓库内示例未改，因为它不属于分发改动；见 UNVERIFIED。
+8. 验收第 4 项发现 `skills/interface_design/examples/initial-analysis-response.json` 的依据行号对应提交 ebc2832 时的 `examples/todo` 源码，提交 360eff6 给 todo 加了截止日期后行号已变，直接导入被程序拒绝。验收时只在副本里修正依据位置（相当于 agent 修正自己的输出），仓库内示例未改。同日稍后应用户要求单独重新生成了该示例：以 `examples/todo` 当前源码的副本导出 `initial_analysis` 请求，按源码分析指令的字数限制重写 design 与 analysis（沿用已确认设计的对象 ID，`forbidden_dependencies` 为空），`archdesign proposal-import` 一次通过，`state.py` 进入 `await_review`；示例的 `request_id` 仍绑定生成时的临时项目路径，只示范格式。
 9. 验收时 `127.0.0.1:8090` 被用户正在运行的工作台占用。`start-workbench.sh` 用默认地址验证了「已在监听则不重复启动」分支；用 `--addr 127.0.0.1:8096` 验证了后台启动、再次调用不重复启动与找不到 archdesign 的错误文字，验证后停止了该进程。`state.py` 相应传 `--addr`。
 10. 验收前删除了 `skills/interface_design/scripts/__pycache__/`（git 已忽略），避免被 CLI 一起复制。
 
@@ -124,5 +124,5 @@ T/skills-lock.json  （source 为本仓库的相对路径，sourceType local，c
 - **本机全局安装后的发现**：`npx skills add … -g` 后 Claude Code 新会话能否列出 `interface_design` 并用 `/interface_design` 启动工作台（验收第 5 项），由用户自行验证，结果待回填。项目范围安装产生的软链布局与 `docs/agent-skill.md` 已验证的全局软链布局一致。
 - **Codex 发现**：CLI 标记 `universal: Codex`，本次未启动 Codex 验证；`~/.agents/skills` 是否被扫描沿用 `docs/agent-skill.md` 的 UNVERIFIED。
 - **`npx skills update`**：未跑更新流程；`skills-lock.json` 的 `computedHash` 是否随内容变化触发更新未验证。
-- **示例响应已过期**：`skills/interface_design/examples/initial-analysis-response.json` 的依据行号对应提交 ebc2832 时的 `examples/todo`，当前源码（360eff6 之后）已变，直接导入会被拒绝；SKILL.md 已注明示例只示范格式、内容不能照抄，但建议单独重新生成一份与当前 todo 源码一致的示例。本次未改。
+- **另外两份示例响应的上下文已旧**：`examples/design-response.json` 与 `adjust-response.json` 是在 360eff6 之前的 todo 基准上生成的（截止日期需求当时还没实现），说明文字也长于现行字数限制；它们只示范格式，未重新生成。`initial-analysis-response.json` 已按当前源码重新生成并导入验证（判断事项 8）。
 - **真实 agent 生成质量、浏览器确认后的回合衔接、规则文件遵循率、`@spec.md` 展开方式、后台工作台在各沙箱的存活**：沿用 `docs/agent-skill.md` 的 UNVERIFIED，本次未新增验证。
