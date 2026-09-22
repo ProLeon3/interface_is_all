@@ -1,0 +1,209 @@
+{
+  "captures": {
+    "after-desktop": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scrollWidth": 1440,
+      "actions": [
+        {
+          "id": "export-handoff",
+          "label": "交接已确认设计",
+          "disabled": false
+        },
+        {
+          "id": "adjust-design",
+          "label": "调整设计",
+          "disabled": false
+        },
+        {
+          "id": "add-module",
+          "label": "新建模块",
+          "disabled": false
+        },
+        {
+          "id": "arrange",
+          "label": "整理布局",
+          "disabled": false
+        }
+      ],
+      "versions": 2,
+      "primary": [
+        {
+          "id": "export-handoff",
+          "label": "交接已确认设计",
+          "disabled": false
+        }
+      ],
+      "disclosures": [
+        "设计工具"
+      ],
+      "canvas_panel_top": 230,
+      "canvas_scroll_top": 286,
+      "status": "草稿与已确认基准一致"
+    },
+    "after-mobile": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "actions": [
+        {
+          "id": "export-handoff",
+          "label": "交接已确认设计",
+          "disabled": false
+        },
+        {
+          "id": "adjust-design",
+          "label": "调整设计",
+          "disabled": false
+        },
+        {
+          "id": "add-module",
+          "label": "新建模块",
+          "disabled": false
+        },
+        {
+          "id": "arrange",
+          "label": "整理布局",
+          "disabled": false
+        }
+      ],
+      "versions": 2,
+      "primary": [
+        {
+          "id": "export-handoff",
+          "label": "交接已确认设计",
+          "disabled": false
+        }
+      ],
+      "disclosures": [
+        "设计工具"
+      ],
+      "canvas_panel_top": 341.59375,
+      "canvas_scroll_top": 403.59375,
+      "status": "草稿与已确认基准一致"
+    },
+    "after-empty-code-desktop": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scrollWidth": 1440,
+      "actions": [
+        {
+          "id": "analyze-initial",
+          "label": "分析已有代码",
+          "disabled": false
+        },
+        {
+          "id": "add-module",
+          "label": "新建模块",
+          "disabled": false
+        },
+        {
+          "id": "arrange",
+          "label": "整理布局",
+          "disabled": false
+        }
+      ],
+      "versions": 2,
+      "primary": [
+        {
+          "id": "analyze-initial",
+          "label": "分析已有代码",
+          "disabled": false
+        }
+      ],
+      "disclosures": [
+        "设计工具",
+        "配置 AI 模型"
+      ],
+      "canvas_panel_top": 557.53125,
+      "canvas_scroll_top": 613.53125,
+      "status": "从代码或需求开始，也可手动创建模块"
+    },
+    "after-empty-code-mobile": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "actions": [
+        {
+          "id": "analyze-initial",
+          "label": "分析已有代码",
+          "disabled": false
+        },
+        {
+          "id": "add-module",
+          "label": "新建模块",
+          "disabled": false
+        },
+        {
+          "id": "arrange",
+          "label": "整理布局",
+          "disabled": false
+        }
+      ],
+      "versions": 2,
+      "primary": [
+        {
+          "id": "analyze-initial",
+          "label": "分析已有代码",
+          "disabled": false
+        }
+      ],
+      "disclosures": [
+        "设计工具",
+        "配置 AI 模型"
+      ],
+      "canvas_panel_top": 680.109375,
+      "canvas_scroll_top": 742.109375,
+      "status": "从代码或需求开始，也可手动创建模块"
+    },
+    "after-empty-requirement": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scrollWidth": 1440,
+      "actions": [
+        {
+          "id": "ai-generate",
+          "label": "生成设计初稿",
+          "disabled": false
+        },
+        {
+          "id": "add-module",
+          "label": "新建模块",
+          "disabled": false
+        },
+        {
+          "id": "arrange",
+          "label": "整理布局",
+          "disabled": false
+        }
+      ],
+      "versions": 2,
+      "primary": [
+        {
+          "id": "ai-generate",
+          "label": "生成设计初稿",
+          "disabled": false
+        }
+      ],
+      "disclosures": [
+        "设计工具",
+        "配置 AI 模型"
+      ],
+      "canvas_panel_top": 600.875,
+      "canvas_scroll_top": 656.875,
+      "status": "从代码或需求开始，也可手动创建模块"
+    }
+  },
+  "findings": [],
+  "errors": []
+}

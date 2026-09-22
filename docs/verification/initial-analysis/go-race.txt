@@ -1,0 +1,10 @@
+ok  	interfaceisall/check	3.029s
+ok  	interfaceisall/cmd/archdesign	1.492s
+ok  	interfaceisall/design	(cached)
+ok  	interfaceisall/designer	1.108s
+?   	interfaceisall/internal/jsonfile	[no test files]
+?   	interfaceisall/internal/projectpath	[no test files]
+?   	interfaceisall/internal/testproject	[no test files]
+?   	interfaceisall/source	[no test files]
+ok  	interfaceisall/store	1.283s
+ok  	interfaceisall/workbench	4.991s

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {"id": "payment", "root": "payment", "responsibility": "处理支付和退款，不管理订单生命周期"},
+    {"id": "order", "root": "order", "responsibility": "管理订单，并通过支付模块申请退款"}
+  ],
+  "interfaces": [
+    {
+      "id": "payment.refund",
+      "module_id": "payment",
+      "name": "申请退款",
+      "description": "对已有支付申请退款，返回受理结果",
+      "semantics": {
+        "inputs": "需要退款的支付标识",
+        "outputs": "退款请求是否被受理",
+        "errors": "支付标识为空时返回错误"
+      }
+    },
+    {
+      "id": "order.cancel",
+      "module_id": "order",
+      "name": "取消已支付订单",
+      "description": "根据订单对应的支付标识申请退款，返回处理结果"
+    }
+  ],
+  "forbidden_dependencies": [
+    {"id": "payment-no-order", "from": "payment", "to": "order", "reason": "支付处理不依赖订单生命周期"}
+  ]
+}

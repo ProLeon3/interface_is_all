@@ -1,0 +1,82 @@
+{
+  "id": "ff766ea4bdaf4bf841d6f93001dbf5b77e8a33f39d1022d26b568d5568c10135",
+  "created_at": "2026-09-20T14:55:03.728463934Z",
+  "expected_draft_hash": "",
+  "expected_revision": "",
+  "before": {
+    "schema_version": 1,
+    "modules": [],
+    "interfaces": [],
+    "forbidden_dependencies": []
+  },
+  "request": {
+    "requirement": "实现一个真实可运行的本地待办命令行小工具，使用 Go 标准库：支持 add \u003c标题\u003e 创建待办、done \u003cID\u003e 完成待办、list 列出未完成待办；支持 -file 指定 JSON 数据文件，下次运行保留任务。标题不能为空，未知 ID 应报错，重复完成保持幂等；文件损坏要报错而不能覆盖。首稿先用两个模块：cli 负责命令行参数和输出，task 负责待办规则及本地 JSON 持久化。模块使用独占相对目录 cli 和 task；接口只表达这些对外能力。首轮不要求并发写入、多用户或网络服务。",
+    "instruction": "",
+    "selection": {
+      "kind": "design",
+      "id": ""
+    },
+    "design": {
+      "schema_version": 1,
+      "modules": [],
+      "interfaces": [],
+      "forbidden_dependencies": []
+    }
+  },
+  "summary": "首稿划分为两个独占相对目录模块：cli 只负责命令行交互，task 统一负责业务规则和 JSON 文件持久化。cli 仅通过 task-service 协作，task 禁止反向依赖 cli；当前明确不包含并发写入、多用户和网络服务能力。",
+  "after": {
+    "schema_version": 1,
+    "modules": [
+      {
+        "id": "cli",
+        "root": "cli",
+        "responsibility": "解析命令行参数与子命令，校验命令形态，调用 task 对外接口，格式化标准输出和错误输出，并设置退出状态。"
+      },
+      {
+        "id": "task",
+        "root": "task",
+        "responsibility": "实现待办领域规则与本地 JSON 持久化，包括 ID 分配、标题校验、幂等完成、未完成任务查询，以及安全读取和保存指定数据文件。"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行接口",
+        "description": "本地待办工具的命令行入口，提供 add、done、list 三个子命令以及可选的 -file JSON 数据文件参数。",
+        "semantics": {
+          "inputs": "命令行参数：可选 -file \u003c路径\u003e；add \u003c标题\u003e；done \u003cID\u003e；list。标题可包含空格，由 cli 汇集为一个标题后提交。",
+          "outputs": "add 输出新任务的 ID 和标题；done 输出已完成或已经完成的成功结果；list 仅输出未完成任务，至少包含 ID 和标题；成功时退出状态为 0。",
+          "errors": "参数缺失、命令未知、ID 格式无效、标题为空以及 task 返回的未知 ID、文件读取或 JSON 损坏等错误，均输出明确错误信息并以非零状态退出；不得因文件损坏而覆盖原文件。"
+        }
+      },
+      {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务接口",
+        "description": "向 cli 提供待办创建、幂等完成、未完成列表查询及指定 JSON 文件持久化能力。",
+        "semantics": {
+          "inputs": "每次操作接收 JSON 数据文件路径；创建操作接收标题；完成操作接收任务 ID；列表操作无需额外业务参数。",
+          "outputs": "创建返回具有稳定唯一 ID、标题和未完成状态的新任务；完成对有效 ID 返回任务结果，重复完成同一任务仍成功且不产生额外状态变化；列表按稳定顺序返回全部未完成任务。",
+          "errors": "空白标题返回错误且不写文件；不存在的 ID 返回错误且不改动数据；无法读取、无法解析或结构不合法的数据文件返回错误，尤其不得覆盖损坏文件；持久化写入失败返回错误。"
+        }
+      }
+    ],
+    "forbidden_dependencies": [
+      {
+        "id": "task-must-not-depend-on-cli",
+        "from": "task",
+        "to": "cli",
+        "reason": "task 应独立承载待办规则和 JSON 持久化，不得依赖命令行参数、终端输出或 cli 的实现细节。"
+      }
+    ],
+    "collaborations": [
+      {
+        "id": "cli-uses-task-service",
+        "from": "cli",
+        "interface_id": "task-service",
+        "purpose": "cli 将解析后的数据文件路径及 add、done、list 请求交给 task，并把返回结果或错误转换为命令行输出和退出状态。"
+      }
+    ]
+  }
+}

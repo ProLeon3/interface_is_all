@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f5f6f2">
+  <title>Interface / 架构工作台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23244638'/%3E%3Cpath d='M9 8h5v5H9zm9 11h5v5h-5zM11 13v8h7' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到工作区</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="项目导航">
+      <!-- 品牌与导航使用统一线条的几何图标，避免不同系统的字符图标外观不一致。 -->
+      <a class="brand" href="/" aria-label="Interface 架构工作台"><svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="3" y="3" width="11" height="11" rx="3"/><rect x="22" y="22" width="11" height="11" rx="3"/><path d="M8.5 14v9a4.5 4.5 0 0 0 4.5 4.5h9M14 8.5h9a4.5 4.5 0 0 1 4.5 4.5v9"/><circle cx="27.5" cy="8.5" r="2.5" class="brand-port"/></svg><span>interface<span class="brand-dot">.</span><small>架构设计工作台</small></span></a>
+      <div class="project-switch"><div class="project-switch-heading"><span class="eyebrow">当前项目</span><button id="choose-project" type="button" class="text-button small" disabled>选择项目</button></div><strong id="project-name">正在连接…</strong><span id="project-path" class="project-path"></span></div>
+      <nav class="main-nav" aria-label="工作区">
+        <button type="button" class="nav-button active" data-navigation data-page="design" aria-current="page"><span aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M6.5 10v7.5H14M10 6.5h7.5V14"/></svg></span>架构设计</button>
+        <button type="button" class="nav-button" data-navigation data-page="checks"><span aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><path d="M9 4H5a1 1 0 0 0-1 1v15h16V5a1 1 0 0 0-1-1h-4"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="m8 13 3 3 5-6"/></svg></span>代码检查<span id="issue-count" class="nav-count" hidden></span></button>
+      </nav>
+      <div class="sidebar-modules"><div class="section-caption">模块索引 <span id="module-count">0</span></div><div id="module-index"></div></div>
+      <!-- 使用指南是随时可查的辅助说明，不作为第三个工作阶段。 -->
+      <nav class="aux-nav" aria-label="帮助"><button type="button" id="usage-guide" class="guide-link" data-navigation data-page="connect">使用指南</button></nav>
+      <div class="sidebar-bottom"><span class="connection-dot"></span><span id="connection-status" role="status">连接本地工作台</span><small>设计由你确认，边界由设计约定。</small></div>
+    </aside>
+    <main id="main" tabindex="-1">
+      <header class="topbar"><div class="breadcrumb">工作空间 <span>/</span> <strong id="breadcrumb-project">—</strong></div><div class="local-label"><span class="connection-dot"></span>本地工作台</div></header>
+      <div id="notices" aria-live="polite"></div>
+      <div id="sync-error" class="banner error" role="alert" hidden></div>
+      <div id="conflict-banner" class="banner warning" role="alert" hidden><div><strong>项目已有新的设计版本</strong><p>你的编辑已保留在当前页面。下载备份后载入最新版本，再重新应用修改。</p></div><div class="button-row"><button type="button" data-action="export-draft">下载我的草稿</button><button type="button" data-action="reload-latest">载入最新版本</button></div></div>
+      <section id="design-page" class="page">
+        <!-- 已有设计以画布为中心；页首只显示当前阶段的下一步。 -->
+        <div class="page-heading design-heading">
+          <div class="heading-copy"><h1>架构设计<span class="heading-dot">.</span></h1><p id="save-state" class="subtitle" role="status">等待连接</p></div>
+          <div id="design-primary-actions" class="heading-actions"><button id="save-draft" type="button" class="primary" disabled hidden>保存草稿</button><button id="review-design" type="button" class="primary" disabled hidden>审阅并确认</button><button type="button" id="export-handoff" class="primary" disabled hidden>交接已确认设计</button></div>
+        </div>
+        <p id="design-flow-hint" class="design-flow-hint">确认设计 → 在编程工具中实现 → 回来检查。</p>
+        <div class="workspace-toolbar"><div class="segmented" aria-label="设计版本"><button id="draft-view" type="button" class="selected" aria-pressed="true">设计草稿</button><button id="confirmed-view" type="button" aria-pressed="false">已确认版本</button></div><span id="version-summary" class="version-summary">尚无已确认设计</span><div class="toolbar-actions"><button type="button" id="adjust-design" aria-expanded="false" aria-controls="design-starter" hidden>调整设计</button><details id="design-tools" class="action-menu"><summary>设计工具</summary><div class="action-menu-panel"><button type="button" id="proposal-import">导入 agent 提案</button><button type="button" data-action="import">导入 JSON</button><button type="button" data-action="export">导出当前设计</button><div id="handoff-tool-slot"></div></div></details></div></div>
+        <!-- 仅导出上下文与导入结果，模型推理由用户已有的 coding agent 执行。 -->
+        <section id="design-starter" class="design-starter" aria-labelledby="starter-title" hidden>
+          <div class="starter-heading"><h2 id="starter-title">开始设计</h2><span id="ai-status" role="status" hidden></span><button type="button" id="close-composer" class="text-button" hidden>收起</button></div>
+          <div id="design-modes" class="segmented design-modes" aria-label="起草方式"><button type="button" id="mode-code" aria-pressed="false">分析已有代码</button><button type="button" id="mode-requirement" aria-pressed="false">从需求设计</button></div>
+          <section id="initial-analysis-entry" class="initial-analysis-entry" aria-labelledby="initial-analysis-title" hidden>
+            <div><h3 id="initial-analysis-title">从已有 Go 代码开始</h3><p id="initial-analysis-hint">导出源码上下文，交给 coding agent 分析，再导入结果审阅。</p><p id="initial-analysis-state" class="muted" role="status"></p></div>
+            <div class="analysis-entry-actions"><button type="button" id="analyze-initial" class="primary" disabled>分析已有代码</button><button type="button" id="discard-initial" class="text-button" hidden>放弃分析，保留草稿</button></div>
+          </section>
+          <section id="ai-composer" class="ai-composer" aria-labelledby="ai-title" hidden>
+            <h3 id="ai-title" class="sr-only">描述需求</h3>
+            <div class="ai-fields"><details id="ai-requirement-context" open><summary>需求与目标</summary><label class="field"><span class="sr-only">需求与目标</span><textarea id="ai-requirement" rows="3" placeholder="例如：为订单提供取消功能，未付款订单直接取消，已付款订单先申请退款。"></textarea></label></details><label id="ai-instruction-field" class="field"><span>本次修改意图</span><textarea id="ai-instruction" rows="3" placeholder="描述希望怎样调整所选对象。"></textarea></label></div>
+            <div class="ai-actions"><div id="ai-target" class="ai-target"><span>当前对象：<strong id="ai-selection">整个设计</strong></span><button type="button" id="ai-whole" class="text-button">选择整个设计</button></div><button type="button" id="ai-generate" class="primary" disabled>导出设计请求</button></div>
+            <p id="ai-hint" class="muted"></p>
+          </section>
+          <p class="muted">在已有 coding agent 中讨论设计。这里导出所选对象和项目上下文，导入结果后审阅确认。</p>
+        </section>
+        <section id="proposal-review" class="proposal-review" aria-label="AI 设计变更审阅" hidden></section>
+        <div class="design-workspace">
+          <section class="canvas-panel" aria-label="模块画布"><div class="canvas-heading"><span><strong>接口协作图</strong><small id="canvas-counts"></small></span><div class="canvas-actions"><button id="add-module" type="button" class="text-button">新建模块</button><button id="arrange" type="button" class="text-button">整理布局</button></div></div><div id="canvas-scroll" class="canvas-scroll"><div id="canvas" class="canvas"><svg id="edges" aria-label="接口协作连线"></svg><div id="nodes"></div><div id="canvas-empty" class="empty-state" hidden><div class="empty-diagram" aria-hidden="true"><i><b></b><b></b></i><span></span><i><b></b><b></b></i></div><h2>在这里梳理模块与接口</h2><p>从上方起草设计，或点击「新建模块」手动开始。<br>已有设计可通过「设计工具」导入。</p></div></div></div><div class="canvas-footer"><span><i class="line-sample collaboration"></i>使用具体接口</span><label class="show-forbidden"><input type="checkbox" id="show-forbidden">显示禁止依赖</label><span class="muted">点选接口或连线查看详情 · 拖动手柄调整布局</span></div></section>
+          <aside id="inspector" class="inspector" aria-label="设计对象详情"></aside>
+        </div>
+        <section id="analysis-evidence" class="analysis-evidence" aria-label="源码分析依据与范围" hidden></section>
+        <div class="design-footnote"><span id="layout-status">布局单独保存，不改变设计版本</span><span id="draft-hash"></span></div>
+      </section>
+      <section id="checks-page" class="page" hidden>
+        <div class="page-heading"><div><h1>代码检查<span class="heading-dot">.</span></h1><p class="subtitle">依据已确认设计，检查代码中的模块依赖与接口约定。</p></div><button id="run-check" type="button" class="primary" disabled hidden>运行依赖检查 <span aria-hidden="true">↗</span></button></div>
+        <section id="check-onboarding" class="check-onboarding" aria-labelledby="check-onboarding-title"><h2 id="check-onboarding-title">先确认一份设计</h2><p>代码检查需要明确的架构约束。先在架构设计中起草并审阅确认。</p><button type="button" id="start-design-from-checks" class="primary" data-page="design">前往架构设计</button></section>
+        <div id="check-tools" class="check-tools" hidden><span id="check-baseline" class="muted"></span><details id="capability-review-tools"><summary>能力审查</summary><p class="muted">将请求交给外部审查工具，再导入响应；语义结论仍需人工确认。</p><div class="button-row"><button id="review-request" type="button" disabled>导出能力审查请求</button><button id="review-import" type="button" disabled>导入审查响应</button></div></details></div>
+        <div id="check-results" hidden></div>
+      </section>
+      <section id="connect-page" class="page" hidden>
+        <div class="page-heading"><div><h1>使用指南<span class="heading-dot">.</span></h1><p class="subtitle">在这里约定模块与接口，在编程工具中实现，再回来核对代码。</p></div></div>
+        <div class="guide-content">
+          <section><h2>先选择要工作的项目</h2><p>工作台读取你选定的本地目录，帮助你设计架构和检查实现。点击「选择项目」输入路径或浏览目录，无需重启；选择只影响当前标签页，刷新后仍会恢复。</p><div class="guide-project"><code id="connected-path" class="code-block"></code><button type="button" data-action="choose-project">选择其他项目</button></div></section>
+          <section><h2>新项目：先设计，再实现</h2><ol><li>在 coding agent 中讨论需求；可从这里导出设计请求，或手动创建模块。导入 agent 提案后审阅变更，接受为草稿，再单独确认。</li><li>coding agent 读取已确认设计后实现；也可通过「交接已确认设计」导出 JSON。</li><li>完成代码后回到「代码检查」，运行依赖检查；接口能力与职责由外部审查工具核对，再导入结果审阅。</li></ol></section>
+          <section><h2>已有 Go 项目：从代码开始</h2><ol><li>从「分析已有代码」导出源码请求，交给 coding agent 分析。在「设计工具」导入 agent 提案。</li><li>核对图上的模块、接口与源码依据，接受提案为草稿，再审阅确认整个设计版本。</li><li>确认后即可进入「代码检查」，无需先交接或重新实现。有问题时调整设计或代码，再次检查。</li></ol><p>有了已确认设计，就可以在设计和检查之间来回工作。修改或保存草稿不会切换检查基准，只有再次确认才会替换它。</p></section>
+          <p class="guide-boundary">依赖检查只检查明确禁止的直接包引用，不会自动运行接口能力审查，也不代表业务功能正确。能力审查的模型判断始终需要你核查。</p>
+          <details id="guide-advanced"><summary>命令行与文件协作</summary><p>也可以通过命令行启动工作台、由外部工具写入草稿，或查看已确认设计并运行检查：</p><pre class="code-block">archdesign serve -addr 127.0.0.1:8090
+archdesign design-request -project /你的项目目录 -kind initial_analysis
+archdesign proposal-import -project /你的项目目录 -file response.json
+archdesign show -project /你的项目目录
+archdesign check -project /你的项目目录</pre><p>草稿保存在 <code>.architecture/draft.json</code>，在工作台审阅确认后才成为实现与检查约束。交接 JSON 包含确认版本、完整设计和实现说明。</p><p>在「代码检查」的「能力审查」中导出请求、导入响应，或由 coding agent 调用 <code>review-request</code> 和 <code>review-import</code>。</p><p>目前支持共享项目文件、设计同步和报告展示。由 coding agent 主导调用；自动触发和 skill 安装由外部工具接入。选中对象可随设计请求导出，工作台会同步展示外部导入的提案。</p></details>
+        </div>
+      </section>
+      <footer class="app-footer"><span>INTERFACE IS ALL</span><span>模块 · 能力 · 边界</span></footer>
+    </main>
+  </div>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <input id="proposal-file" type="file" accept=".json,application/json" hidden>
+  <input id="design-file" type="file" accept=".json,application/json" hidden>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

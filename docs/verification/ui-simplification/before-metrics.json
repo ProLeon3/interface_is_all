@@ -1,0 +1,25 @@
+{
+  "viewport_desktop": {
+    "width": 1440,
+    "height": 900
+  },
+  "viewport_mobile": {
+    "width": 390,
+    "height": 844
+  },
+  "desktop": {
+    "actions": 10,
+    "version_controls": 2,
+    "primary": 3,
+    "canvas_panel_top": 766.2,
+    "canvas_scroll_top": 822.2
+  },
+  "mobile": {
+    "actions": 7,
+    "version_controls": 2,
+    "primary": 2,
+    "canvas_panel_top": 1161.9,
+    "canvas_scroll_top": 1210.9
+  },
+  "scope": "设计页首屏图外操作；不含导航、索引、图中对象。primary 包含 disabled。"
+}

@@ -1,0 +1,220 @@
+{
+  "id": "66b982f206796116cb3094d2744d6e08bfc52d68a6d419fd27f3f08be5bce669",
+  "created_at": "2026-09-20T14:57:18.053258671Z",
+  "expected_draft_hash": "964cc5c2d495b92aea51e2873e1d91c27153ae002aa2b99c75c6ca65e17b205f",
+  "expected_revision": "",
+  "before": {
+    "schema_version": 1,
+    "modules": [
+      {
+        "id": "cli",
+        "root": "cli",
+        "responsibility": "解析命令行参数与子命令，校验命令形态，调用 task 对外接口，格式化标准输出和错误输出，并设置退出状态。"
+      },
+      {
+        "id": "task",
+        "root": "task",
+        "responsibility": "实现待办领域规则与本地 JSON 持久化，包括 ID 分配、标题校验、幂等完成、未完成任务查询，以及安全读取和保存指定数据文件。"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行接口",
+        "description": "本地待办工具的命令行入口，提供 add、done、list 三个子命令以及可选的 -file JSON 数据文件参数。",
+        "semantics": {
+          "inputs": "命令行参数：可选 -file \u003c路径\u003e；add \u003c标题\u003e；done \u003cID\u003e；list。标题可包含空格，由 cli 汇集为一个标题后提交。",
+          "outputs": "add 输出新任务的 ID 和标题；done 输出已完成或已经完成的成功结果；list 仅输出未完成任务，至少包含 ID 和标题；成功时退出状态为 0。",
+          "errors": "参数缺失、命令未知、ID 格式无效、标题为空以及 task 返回的未知 ID、文件读取或 JSON 损坏等错误，均输出明确错误信息并以非零状态退出；不得因文件损坏而覆盖原文件。"
+        }
+      },
+      {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务接口",
+        "description": "向 cli 提供待办创建、幂等完成、未完成列表查询及指定 JSON 文件持久化能力。",
+        "semantics": {
+          "inputs": "每次操作接收 JSON 数据文件路径；创建操作接收标题；完成操作接收任务 ID；列表操作无需额外业务参数。",
+          "outputs": "创建返回具有稳定唯一 ID、标题和未完成状态的新任务；完成对有效 ID 返回任务结果，重复完成同一任务仍成功且不产生额外状态变化；列表按稳定顺序返回全部未完成任务。",
+          "errors": "空白标题返回错误且不写文件；不存在的 ID 返回错误且不改动数据；无法读取、无法解析或结构不合法的数据文件返回错误，尤其不得覆盖损坏文件；持久化写入失败返回错误。"
+        }
+      }
+    ],
+    "forbidden_dependencies": [
+      {
+        "id": "task-must-not-depend-on-cli",
+        "from": "task",
+        "to": "cli",
+        "reason": "task 应独立承载待办规则和 JSON 持久化，不得依赖命令行参数、终端输出或 cli 的实现细节。"
+      }
+    ],
+    "collaborations": [
+      {
+        "id": "cli-uses-task-service",
+        "from": "cli",
+        "interface_id": "task-service",
+        "purpose": "cli 将解析后的数据文件路径及 add、done、list 请求交给 task，并把返回结果或错误转换为命令行输出和退出状态。"
+      }
+    ]
+  },
+  "request": {
+    "requirement": "实现一个真实可运行的本地待办命令行小工具，使用 Go 标准库：支持 add \u003c标题\u003e 创建待办、done \u003cID\u003e 完成待办、list 列出未完成待办；支持 -file 指定 JSON 数据文件，下次运行保留任务。标题不能为空，未知 ID 应报错，重复完成保持幂等；文件损坏要报错而不能覆盖。首稿先用两个模块：cli 负责命令行参数和输出，task 负责待办规则及本地 JSON 持久化。模块使用独占相对目录 cli 和 task；接口只表达这些对外能力。首轮不要求并发写入、多用户或网络服务。",
+    "instruction": "把 task 中的本地 JSON 文件持久化职责拆到独立 storage 模块（目录 storage）。task 保留创建、完成、列出待办的业务规则，cli 继续仅调用 task 的业务能力；task 通过 storage 的完整读取和原子写入接口协作。用中立的 JSON 文档读写能力避免 storage 反向依赖 task；保留文件损坏不得覆盖、重启持久化、标题校验和幂等完成语义。联动更新模块职责、接口归属与协作关系，保留未受影响的稳定 ID。",
+    "selection": {
+      "kind": "module",
+      "id": "task"
+    },
+    "design": {
+      "schema_version": 1,
+      "modules": [
+        {
+          "id": "cli",
+          "root": "cli",
+          "responsibility": "解析命令行参数与子命令，校验命令形态，调用 task 对外接口，格式化标准输出和错误输出，并设置退出状态。"
+        },
+        {
+          "id": "task",
+          "root": "task",
+          "responsibility": "实现待办领域规则与本地 JSON 持久化，包括 ID 分配、标题校验、幂等完成、未完成任务查询，以及安全读取和保存指定数据文件。"
+        }
+      ],
+      "interfaces": [
+        {
+          "id": "cli-command",
+          "module_id": "cli",
+          "name": "待办命令行接口",
+          "description": "本地待办工具的命令行入口，提供 add、done、list 三个子命令以及可选的 -file JSON 数据文件参数。",
+          "semantics": {
+            "inputs": "命令行参数：可选 -file \u003c路径\u003e；add \u003c标题\u003e；done \u003cID\u003e；list。标题可包含空格，由 cli 汇集为一个标题后提交。",
+            "outputs": "add 输出新任务的 ID 和标题；done 输出已完成或已经完成的成功结果；list 仅输出未完成任务，至少包含 ID 和标题；成功时退出状态为 0。",
+            "errors": "参数缺失、命令未知、ID 格式无效、标题为空以及 task 返回的未知 ID、文件读取或 JSON 损坏等错误，均输出明确错误信息并以非零状态退出；不得因文件损坏而覆盖原文件。"
+          }
+        },
+        {
+          "id": "task-service",
+          "module_id": "task",
+          "name": "待办服务接口",
+          "description": "向 cli 提供待办创建、幂等完成、未完成列表查询及指定 JSON 文件持久化能力。",
+          "semantics": {
+            "inputs": "每次操作接收 JSON 数据文件路径；创建操作接收标题；完成操作接收任务 ID；列表操作无需额外业务参数。",
+            "outputs": "创建返回具有稳定唯一 ID、标题和未完成状态的新任务；完成对有效 ID 返回任务结果，重复完成同一任务仍成功且不产生额外状态变化；列表按稳定顺序返回全部未完成任务。",
+            "errors": "空白标题返回错误且不写文件；不存在的 ID 返回错误且不改动数据；无法读取、无法解析或结构不合法的数据文件返回错误，尤其不得覆盖损坏文件；持久化写入失败返回错误。"
+          }
+        }
+      ],
+      "forbidden_dependencies": [
+        {
+          "id": "task-must-not-depend-on-cli",
+          "from": "task",
+          "to": "cli",
+          "reason": "task 应独立承载待办规则和 JSON 持久化，不得依赖命令行参数、终端输出或 cli 的实现细节。"
+        }
+      ],
+      "collaborations": [
+        {
+          "id": "cli-uses-task-service",
+          "from": "cli",
+          "interface_id": "task-service",
+          "purpose": "cli 将解析后的数据文件路径及 add、done、list 请求交给 task，并把返回结果或错误转换为命令行输出和退出状态。"
+        }
+      ]
+    }
+  },
+  "summary": "将本地 JSON 文件持久化从 task 拆分到独占 storage 目录。保留 cli、task、cli-command、task-service、task-must-not-depend-on-cli 和 cli-uses-task-service 等稳定 ID；新增中立的 storage-json-document 接口及 task 到 storage 的协作。cli 仍只调用 task，task 保留全部待办业务规则和业务文档校验，storage 不了解待办模型，只负责完整读取、JSON 语法检查和原子写入。",
+  "after": {
+    "schema_version": 1,
+    "modules": [
+      {
+        "id": "cli",
+        "root": "cli",
+        "responsibility": "解析命令行参数与子命令，校验命令形态，仅调用 task 对外接口，格式化标准输出和错误输出，并设置退出状态。"
+      },
+      {
+        "id": "task",
+        "root": "task",
+        "responsibility": "实现待办领域规则，包括稳定唯一 ID 分配、标题校验、幂等完成、未完成任务的稳定顺序查询，以及待办 JSON 文档的业务结构解析与校验；通过 storage 完成持久化。"
+      },
+      {
+        "id": "storage",
+        "root": "storage",
+        "responsibility": "使用 Go 标准库提供中立的本地 JSON 文档完整读取和原子写入；识别文件不存在、读取失败及 JSON 语法损坏，并保证损坏文件不被覆盖、写入失败不产生半写入目标文件。"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行接口",
+        "description": "本地待办工具的命令行入口，提供 add、done、list 三个子命令以及可选的 -file JSON 数据文件参数。",
+        "semantics": {
+          "inputs": "命令行参数：可选 -file \u003c路径\u003e；add \u003c标题\u003e；done \u003cID\u003e；list。标题可包含空格，由 cli 汇集为一个标题后提交。",
+          "outputs": "add 输出新任务的 ID 和标题；done 输出已完成或已经完成的成功结果；list 仅输出未完成任务，至少包含 ID 和标题；成功时退出状态为 0。",
+          "errors": "参数缺失、命令未知、ID 格式无效、标题为空以及 task 返回的未知 ID、文件读取、JSON 损坏或持久化失败等错误，均输出明确错误信息并以非零状态退出；不得因文件损坏而覆盖原文件。"
+        }
+      },
+      {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务接口",
+        "description": "向 cli 提供待办创建、幂等完成和未完成列表查询能力；task 负责业务规则，并通过 storage 持久化指定文件中的待办状态。",
+        "semantics": {
+          "inputs": "每次操作接收 JSON 数据文件路径；创建操作接收标题；完成操作接收任务 ID；列表操作无需额外业务参数。",
+          "outputs": "创建返回具有稳定唯一 ID、标题和未完成状态的新任务；完成对有效 ID 返回任务结果，重复完成同一任务仍成功且不产生额外写入或状态变化；列表按稳定顺序返回全部未完成任务。",
+          "errors": "空白标题返回错误且不写文件；不存在的 ID 返回错误且不改动数据；无法读取、无法解析或结构不合法的数据文件返回错误，尤其不得覆盖损坏文件；持久化写入失败返回错误。"
+        }
+      },
+      {
+        "id": "storage-json-document",
+        "module_id": "storage",
+        "name": "JSON 文档存储接口",
+        "description": "提供与待办领域无关的完整 JSON 文档读取和原子写入能力，不解释文档中的业务字段，也不依赖 task。",
+        "semantics": {
+          "inputs": "读取接收数据文件路径；写入接收数据文件路径和一份完整、有效的 JSON 文档。路径不存在时按“文档不存在”返回，由调用方决定初始业务状态。",
+          "outputs": "读取返回完整 JSON 文档或可区分的“文档不存在”结果；写入仅在完整内容成功落盘并原子替换目标文件后返回成功。",
+          "errors": "读取失败、JSON 语法损坏或写入失败时返回明确错误；读取到损坏文档时不得执行任何覆盖。写入前拒绝无效 JSON，并使用同目录临时文件和原子替换提交，失败时不得暴露半写入的目标文档。"
+        }
+      }
+    ],
+    "forbidden_dependencies": [
+      {
+        "id": "task-must-not-depend-on-cli",
+        "from": "task",
+        "to": "cli",
+        "reason": "task 应独立承载待办业务规则，不得依赖命令行参数、终端输出或 cli 的实现细节。"
+      },
+      {
+        "id": "cli-must-not-depend-on-storage",
+        "from": "cli",
+        "to": "storage",
+        "reason": "cli 只能通过 task-service 使用待办业务能力，不得直接读写数据文件或绕过 task 的业务校验。"
+      },
+      {
+        "id": "storage-must-not-depend-on-task",
+        "from": "storage",
+        "to": "task",
+        "reason": "storage 只提供中立的 JSON 文档读取和原子写入能力，不得了解待办模型、业务规则或引用 task。"
+      },
+      {
+        "id": "storage-must-not-depend-on-cli",
+        "from": "storage",
+        "to": "cli",
+        "reason": "storage 不得依赖命令行参数、输出格式或退出状态等 cli 实现细节。"
+      }
+    ],
+    "collaborations": [
+      {
+        "id": "cli-uses-task-service",
+        "from": "cli",
+        "interface_id": "task-service",
+        "purpose": "cli 将解析后的数据文件路径及 add、done、list 请求交给 task，并把返回结果或错误转换为命令行输出和退出状态。"
+      },
+      {
+        "id": "task-uses-storage-json-document",
+        "from": "task",
+        "interface_id": "storage-json-document",
+        "purpose": "task 在每次业务操作开始时完整读取指定 JSON 文档并解析、校验待办数据；仅在业务校验成功且状态需要变更时，将完整的新 JSON 文档交给 storage 原子写入。"
+      }
+    ]
+  }
+}

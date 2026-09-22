@@ -1,0 +1,113 @@
+{
+  "viewports": [
+    {
+      "label": "empty-checks-desktop",
+      "width": 1440,
+      "height": 900,
+      "overflow": false,
+      "activeNavigation": [
+        "checks"
+      ],
+      "guideTop": 788.40625,
+      "canvasTop": 0,
+      "primaryNavigationCount": 2
+    },
+    {
+      "label": "guide-desktop",
+      "width": 1440,
+      "height": 900,
+      "overflow": false,
+      "activeNavigation": [
+        "connect"
+      ],
+      "guideTop": 788.40625,
+      "canvasTop": 0,
+      "primaryNavigationCount": 2
+    },
+    {
+      "label": "guide-mobile",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "activeNavigation": [
+        "connect"
+      ],
+      "guideTop": 136.59375,
+      "canvasTop": 0,
+      "primaryNavigationCount": 2
+    },
+    {
+      "label": "empty-checks-mobile",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "activeNavigation": [
+        "checks"
+      ],
+      "guideTop": 136.59375,
+      "canvasTop": 0,
+      "primaryNavigationCount": 2
+    },
+    {
+      "label": "design-desktop",
+      "width": 1440,
+      "height": 900,
+      "overflow": false,
+      "activeNavigation": [
+        "design"
+      ],
+      "guideTop": 788.40625,
+      "canvasTop": 313.796875,
+      "primaryNavigationCount": 2
+    },
+    {
+      "label": "design-mobile",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "activeNavigation": [
+        "design"
+      ],
+      "guideTop": 136.59375,
+      "canvasTop": 469.734375,
+      "primaryNavigationCount": 2
+    },
+    {
+      "label": "confirmed-checks-desktop",
+      "width": 1440,
+      "height": 900,
+      "overflow": false,
+      "activeNavigation": [
+        "checks"
+      ],
+      "guideTop": 788.40625,
+      "canvasTop": 0,
+      "primaryNavigationCount": 2
+    }
+  ],
+  "checks": [
+    "无确认版本仅显示前置说明，CTA 可返回设计且活动态唯一",
+    "使用指南区分两条流程，高级协作可用键盘展开",
+    "手机可访问指南并从检查空态返回设计",
+    "有未保存草稿时仍能依确认版本检查，能力审查入口保留"
+  ],
+  "errors": [],
+  "coreBrowserRegression": {
+    "status": "passed",
+    "results": [
+      "VERIFIED: CUJ-01 编辑与确认；CUJ-02 冲突保护；CUJ-03 依赖与语义报告；CUJ-04 布局持久化与响应式",
+      "VERIFIED: 延迟轮询、临时写锁重试、草稿备份、轮询期间主动重载和合法 ID 均通过",
+      "VERIFIED: CUJ-05 路径输入、目录浏览、中文路径、取消、未保存编辑、项目隔离、刷新恢复和窄屏入口"
+    ]
+  },
+  "runningService": {
+    "url": "http://127.0.0.1:8090/",
+    "primaryNavigation": [
+      "架构设计",
+      "代码检查"
+    ],
+    "guideOutsideMainNavigation": true,
+    "checkHeading": "代码检查.",
+    "project": "/home/pr0le0n/projects/resume_project/interface_is_all"
+  }
+}

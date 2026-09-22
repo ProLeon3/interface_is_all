@@ -1,0 +1,11 @@
+/archdesign
+/.architecture/
+/coverage.out
+
+# 本地 AI 凭证与浏览器调试产物
+.env.archdesign
+.playwright-cli/
+.impeccable/review/
+
+# IDE 工作区文件
+.idea/

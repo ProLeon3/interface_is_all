@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "接口能力审查响应",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "request_id", "interfaces", "concerns"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "interfaces": {"type": "array", "items": {"$ref": "#/$defs/association"}},
+    "concerns": {"type": "array", "items": {"$ref": "#/$defs/concern"}}
+  },
+  "$defs": {
+    "text": {"type": "string", "pattern": "\\S"},
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/text"}, "uniqueItems": true},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["file", "line", "end_line"],
+        "properties": {
+          "file": {"$ref": "#/$defs/text"},
+          "line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "association": {
+      "type": "object", "additionalProperties": false,
+      "required": ["interface_id", "entry_ids", "assessment", "reason", "evidence"],
+      "properties": {
+        "interface_id": {"$ref": "#/$defs/text"},
+        "entry_ids": {"$ref": "#/$defs/entries"},
+        "assessment": {"enum": ["aligned", "not_found", "potential_deviation", "uncertain"]},
+        "reason": {"$ref": "#/$defs/text"},
+        "evidence": {"$ref": "#/$defs/evidence"}
+      }
+    },
+    "concern": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "module_id", "entry_ids", "reason", "evidence"],
+      "properties": {
+        "kind": {"enum": ["additional_capability", "responsibility_drift"]},
+        "module_id": {"$ref": "#/$defs/text"},
+        "entry_ids": {"$ref": "#/$defs/entries", "minItems": 1},
+        "reason": {"$ref": "#/$defs/text"},
+        "evidence": {"$ref": "#/$defs/evidence", "minItems": 1}
+      }
+    }
+  }
+}

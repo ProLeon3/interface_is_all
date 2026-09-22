@@ -1,0 +1,36 @@
+{
+  "go": "go test ./... 通过",
+  "javascript": "node --check 修改的前端和验收脚本通过",
+  "browser": {
+    "scripts/verify-workbench.sh": {
+      "status": "passed",
+      "results": [
+        "VERIFIED: CUJ-01 编辑与确认；CUJ-02 冲突保护；CUJ-03 依赖与语义报告；CUJ-04 布局持久化与响应式",
+        "VERIFIED: 延迟轮询、临时写锁重试、草稿备份、轮询期间主动重载和合法 ID 均通过",
+        "VERIFIED: CUJ-05 路径输入、目录浏览、中文路径、取消、未保存编辑、项目隔离、刷新恢复和窄屏入口"
+      ]
+    },
+    "scripts/verify-ai-workbench.sh": {
+      "status": "passed",
+      "results": [
+        "VERIFIED: AI 固定响应回归；生成、选中修改、继续调整、图形差异、刷新恢复、确认交接、并发保护。初始提案 b0c2340aab5e4bbc9d8c34dcd9193ba03c0a70a359d85081f5ce70ed58a6aa21"
+      ]
+    },
+    "scripts/verify-initial-analysis.sh": {
+      "status": "passed",
+      "results": [
+        "VERIFIED: 初次分析浏览器流程、跨窗口恢复、源码证据、草稿编辑重开、明确确认与后续检查",
+        "VERIFIED: 已有基准重新分析、基准对照、旧证据隔离、跨窗口恢复、撤回保护、相同设计确认及新基准检查"
+      ]
+    },
+    "proposal-refresh": {
+      "status": "passed",
+      "evidence": "true"
+    }
+  },
+  "limits": [
+    "模型相关流程使用固定响应，未调用真实模型。",
+    "Impeccable 检测器缺少引擎，未运行成功。",
+    "验证只操作临时项目副本。"
+  ]
+}

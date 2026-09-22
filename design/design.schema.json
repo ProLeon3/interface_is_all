@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://interface-is-all.local/design.schema.json",
+  "title": "模块与接口设计",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "modules", "interfaces", "forbidden_dependencies"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "modules": {"type": "array", "items": {"$ref": "#/$defs/module"}},
+    "interfaces": {"type": "array", "items": {"$ref": "#/$defs/interface"}},
+    "forbidden_dependencies": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+    "collaborations": {"type": "array", "items": {"$ref": "#/$defs/collaboration"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]*$", "maxLength": 128},
+    "text": {"type": "string", "pattern": "\\S"},
+    "module": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "root", "responsibility"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "root": {"$ref": "#/$defs/text"},
+        "responsibility": {"$ref": "#/$defs/text"}
+      }
+    },
+    "interface": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "module_id", "name", "description"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "module_id": {"$ref": "#/$defs/id"},
+        "name": {"$ref": "#/$defs/text"},
+        "description": {"$ref": "#/$defs/text"},
+        "semantics": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "inputs": {"$ref": "#/$defs/text"},
+            "outputs": {"$ref": "#/$defs/text"},
+            "errors": {"$ref": "#/$defs/text"}
+          }
+        }
+      }
+    },
+    "collaboration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "from", "interface_id", "purpose"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "from": {"$ref": "#/$defs/id"},
+        "interface_id": {"$ref": "#/$defs/id"},
+        "purpose": {"$ref": "#/$defs/text"}
+      }
+    },
+    "rule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "from", "to", "reason"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "from": {"$ref": "#/$defs/id"},
+        "to": {"$ref": "#/$defs/id"},
+        "reason": {"$ref": "#/$defs/text"}
+      }
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "result": "VERIFIED: 图片加载、四种宽度、三页导航、确认视图、键盘焦点和空画布入口",
+  "assetBytes": 19826,
+  "checks": [
+    {
+      "viewport": 1440,
+      "width": 1440,
+      "image": {
+        "x": 888,
+        "y": 104,
+        "width": 260,
+        "height": 130
+      },
+      "title": {
+        "x": 272,
+        "y": 132.625,
+        "width": 600,
+        "height": 72.734375
+      },
+      "actions": {
+        "x": 1164,
+        "y": 136.703125,
+        "width": 222,
+        "height": 64.59375
+      },
+      "canvas": {
+        "x": 250,
+        "y": 616.03125,
+        "width": 1158,
+        "height": 732
+      }
+    },
+    {
+      "viewport": 1024,
+      "width": 1024,
+      "image": {
+        "x": 770,
+        "y": 98,
+        "width": 210,
+        "height": 144
+      },
+      "title": {
+        "x": 229,
+        "y": 104.328125,
+        "width": 521,
+        "height": 68.6875
+      },
+      "actions": {
+        "x": 229,
+        "y": 197.671875,
+        "width": 521,
+        "height": 38
+      },
+      "canvas": {
+        "x": 207,
+        "y": 624.03125,
+        "width": 795,
+        "height": 732
+      }
+    },
+    {
+      "viewport": 390,
+      "width": 390,
+      "image": {
+        "x": 266,
+        "y": 225.59375,
+        "width": 90,
+        "height": 100
+      },
+      "title": {
+        "x": 34,
+        "y": 225.59375,
+        "width": 224,
+        "height": 82.640625
+      },
+      "actions": {
+        "x": 34,
+        "y": 341.59375,
+        "width": 322,
+        "height": 62
+      },
+      "canvas": {
+        "x": 18,
+        "y": 920.5625,
+        "width": 354,
+        "height": 1947.734375
+      }
+    },
+    {
+      "viewport": 320,
+      "width": 320,
+      "image": {
+        "x": 226,
+        "y": 227.5625,
+        "width": 60,
+        "height": 76
+      },
+      "title": {
+        "x": 34,
+        "y": 225.59375,
+        "width": 184,
+        "height": 79.9375
+      },
+      "actions": {
+        "x": 34,
+        "y": 321.53125,
+        "width": 252,
+        "height": 62
+      },
+      "canvas": {
+        "x": 18,
+        "y": 939.5,
+        "width": 284,
+        "height": 2032.515625
+      }
+    }
+  ],
+  "errors": [],
+  "source_sha256": {
+    "workbench/web/index.html": "da31b0c2d477ee9190d8085129a861273200dd9794cfcdad35b86585d105fa33",
+    "workbench/web/styles.css": "bb210985551380e9dae74ada92666b984b62116e91578656904088f49d7d6c30",
+    "workbench/web/assets/module-study.webp": "6cc4a64e1b1401c61bd56c2c8099f39d0f5e13925ae3f6050ff5dbfa70acd5bb"
+  }
+}

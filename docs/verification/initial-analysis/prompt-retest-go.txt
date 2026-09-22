@@ -1,0 +1,16 @@
+2026-09-21：显式任务消息修复后的程序回归
+
+GOCACHE=/tmp/interface-is-all-gocache go test -race ./...
+ok  	interfaceisall/check	(cached)
+ok  	interfaceisall/cmd/archdesign	1.553s
+ok  	interfaceisall/design	(cached)
+ok  	interfaceisall/designer	1.087s
+?   	interfaceisall/internal/jsonfile	[no test files]
+?   	interfaceisall/internal/projectpath	[no test files]
+?   	interfaceisall/internal/testproject	[no test files]
+?   	interfaceisall/source	[no test files]
+ok  	interfaceisall/store	(cached)
+ok  	interfaceisall/workbench	(cached)
+
+GOCACHE=/tmp/interface-is-all-gocache go vet ./...
+退出码 0，无输出。
