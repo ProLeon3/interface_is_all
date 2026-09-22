@@ -1,4 +1,4 @@
-// 接续首次分析的隔离项目，用固定模型与真实浏览器验证已有基准的更新流程。
+// 接续首次分析的隔离项目，由页面内固定替身扮演 coding agent，用真实浏览器验证已有基准的更新流程。
 async page => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const errors = [];
@@ -15,14 +15,36 @@ async page => {
     if (!await page.locator('#design-starter').isVisible()) await page.locator('#adjust-design').click();
     if (!await page.locator('#initial-analysis-entry').isVisible()) await page.locator('#mode-code').click();
   };
+  // 导出请求 → 固定替身生成响应 → 经「设计工具」的真实文件控件导入，复现与 coding agent 的文件交换。
+  const exchange = async button => {
+    const exported = page.waitForResponse(r => r.url().endsWith('/api/design-request') && r.request().method() === 'POST');
+    const requestDownload = page.waitForEvent('download');
+    await page.locator(button).click();
+    const result = await exported;
+    assert(result.ok(),`导出请求失败：${await result.text()}`);
+    const request = await result.json();
+    assert((await requestDownload).suggestedFilename().endsWith('request.json'),'请求文件未下载');
+    const responseDownload = page.waitForEvent('download');
+    await page.evaluate(request => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(window.__fixedAgent(request))],{type:'application/json'}));
+      const link = document.createElement('a'); link.href = url; link.download = 'agent-response.json'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url),1000);
+    },request);
+    const responsePath = await (await responseDownload).path();
+    // 「导入 agent 提案」按钮的禁用状态决定能否导入；playwright-cli 会把原生文件选择框当作模态状态拦截，
+    // 因此直接向它打开的隐藏文件控件设置文件，仍经过同一个 change 处理器和服务端校验。
+    assert(!await page.locator('#proposal-import').isDisabled(),'导入 agent 提案入口不可用');
+    const imported = page.waitForResponse(r => r.url().endsWith('/api/proposal-import') && r.request().method() === 'POST');
+    await page.locator('#proposal-file').setInputFiles(responsePath);
+    const importResult = await imported;
+    assert(importResult.ok(),`导入提案失败：${await importResult.text()}`);
+    await page.locator('#proposal-accept:not([disabled])').waitFor();
+    return importResult.json();
+  };
   const generate = async () => {
     await openAnalysis();
-    const response = page.waitForResponse(r => r.url().endsWith('/api/reanalysis') && r.request().method() === 'POST');
-    await page.locator('#analyze-initial').click();
-    const generated = await response;
-    assert(generated.ok(),await generated.text());
-    await page.locator('#proposal-accept:not([disabled])').waitFor();
-    return generated.json();
+    assert(await page.locator('#analyze-initial').innerText() === '导出重新分析请求','重新分析入口文案错误');
+    return exchange('#analyze-initial');
   };
   const accept = async () => {
     await page.locator('#proposal-accept:not([disabled])').click();
@@ -51,7 +73,7 @@ async page => {
     return (await state()).confirmed;
   };
   let proposal = await generate();
-  assert(proposal.baseline.revision === baseline.revision,'提案没有保存生成时的基准');
+  assert(proposal.request_id && proposal.baseline.revision === baseline.revision,'提案没有保存生成时的基准或请求绑定');
   assert((await state()).confirmed.revision === baseline.revision,'生成提前替换了基准');
   const baselineDiff = page.locator('.proposal-baseline-diff');
   await baselineDiff.locator('summary').click();
@@ -127,9 +149,9 @@ async page => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
     link.download = 'reanalysis-journey.json'; link.click();
-  },{verification:'fixed-model-browser',baseline,proposal,current,latest,state:safeState,report});
+  },{verification:'fixed-agent-browser',baseline,proposal,current,latest,state:safeState,report});
   await (await download).saveAs('reanalysis-journey.json');
-  const result = 'VERIFIED: 已有基准重新分析、基准对照、旧证据隔离、跨窗口恢复、撤回保护、相同设计确认及新基准检查';
+  const result = 'VERIFIED: 已有基准重新分析：导出请求与导入提案、基准对照、旧证据隔离、跨窗口恢复、撤回保护、相同设计确认及新基准检查';
   await page.evaluate(value => {window.__reanalysisJourneyResult=value;},result);
   return result;
 }

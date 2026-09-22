@@ -1,4 +1,4 @@
-// 固定 HTTP 模型响应配合真实浏览器，验证完整设计生命周期，不证明模型质量。
+// 页面内固定替身扮演 coding agent，配合真实浏览器验证导出请求、导入提案到确认交接的完整生命周期，不证明模型质量。
 async page => {
   const assert = (ok,message) => {if (!ok) throw new Error(message);};
   const errors = [];
@@ -9,19 +9,38 @@ async page => {
     if (!await page.locator('#design-starter').isVisible()) await page.locator('#adjust-design').click();
     if (!await page.locator('#ai-composer').isVisible()) await page.locator('#mode-requirement').click();
   };
-  const generate = async () => {
-    const response = page.waitForResponse(r => r.url().endsWith('/api/proposals') && r.request().method() === 'POST');
-    await page.locator('#ai-generate').click();
-    const result = await response;
-    assert(result.ok(),`生成请求失败：${await result.text()}`);
+  // 导出请求 → 固定替身生成响应 → 经「设计工具」的真实文件控件导入，复现与 coding agent 的文件交换。
+  const exchange = async button => {
+    const exported = page.waitForResponse(r => r.url().endsWith('/api/design-request') && r.request().method() === 'POST');
+    const requestDownload = page.waitForEvent('download');
+    await page.locator(button).click();
+    const result = await exported;
+    assert(result.ok(),`导出请求失败：${await result.text()}`);
+    const request = await result.json();
+    assert((await requestDownload).suggestedFilename().endsWith('request.json'),'请求文件未下载');
+    const responseDownload = page.waitForEvent('download');
+    await page.evaluate(request => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(window.__fixedAgent(request))],{type:'application/json'}));
+      const link = document.createElement('a'); link.href = url; link.download = 'agent-response.json'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url),1000);
+    },request);
+    const responsePath = await (await responseDownload).path();
+    // 「导入 agent 提案」按钮的禁用状态决定能否导入；playwright-cli 会把原生文件选择框当作模态状态拦截，
+    // 因此直接向它打开的隐藏文件控件设置文件，仍经过同一个 change 处理器和服务端校验。
+    assert(!await page.locator('#proposal-import').isDisabled(),'导入 agent 提案入口不可用');
+    const imported = page.waitForResponse(r => r.url().endsWith('/api/proposal-import') && r.request().method() === 'POST');
+    await page.locator('#proposal-file').setInputFiles(responsePath);
+    const importResult = await imported;
+    assert(importResult.ok(),`导入提案失败：${await importResult.text()}`);
     await page.locator('#proposal-accept:not([disabled])').waitFor();
-    return result.json();
+    return importResult.json();
   };
+  const generate = () => exchange('#ai-generate');
   await page.setViewportSize({width:1440,height:1000});
   await page.locator('#ai-generate:not([disabled])').waitFor();
   await page.locator('#ai-requirement').fill('订单取消：已付款订单先申请退款，未付款订单直接取消。');
   const initial = await generate();
-  assert((await state()).draft === null,'AI 生成提前保存了草稿');
+  assert(initial.request_id && (await state()).draft === null,'导入提案提前保存了草稿或缺少请求绑定');
   assert(await page.locator('.collaboration-edge').count() === 2,'协作线未展示');
   assert(await page.locator('.forbidden-edge').count() === 0,'禁止规则混进默认协作图');
   await page.locator('#show-forbidden').check();
@@ -89,10 +108,10 @@ async page => {
   const confirmed = await state();
   assert(confirmed.confirmed.design.interfaces.find(a => a.id === 'request-refund').module_id === 'refund','确认丢失接口归属');
 
-  // 未保存编辑会阻止 AI 请求；外部更新后不能接受旧提案。
+  // 未保存编辑会阻止导出与导入；外部更新后不能接受旧提案。
   await page.locator('.node-select[data-module="order"]').click();
   await page.getByLabel('职责与边界').fill('尚未保存的本地职责');
-  assert(await page.locator('#ai-generate').isDisabled(),'未保存编辑未受保护');
+  assert(await page.locator('#ai-generate').isDisabled() && await page.locator('#proposal-import').isDisabled(),'未保存编辑未受保护');
   await page.locator('#save-draft').click();
   await openAdjustment();
   await page.locator('#ai-generate:not([disabled])').waitFor();
@@ -110,7 +129,7 @@ async page => {
   assert((await state()).draft.modules[0].responsibility === '另一个窗口的新职责','旧提案覆盖外部更新');
   assert((await state()).confirmed.revision === confirmed.confirmed.revision,'草稿更新改变了确认快照');
   assert(errors.length === 0,`浏览器错误：${errors.join('; ')}`);
-  const result = `VERIFIED: AI 固定响应回归；生成、选中修改、继续调整、图形差异、刷新恢复、确认交接、并发保护。初始提案 ${initial.id}`;
+  const result = `VERIFIED: AI 固定响应回归；导出请求、导入提案、选中修改、继续调整、图形差异、刷新恢复、确认交接、并发保护。初始提案 ${initial.id}`;
   await page.evaluate(message => {window.__aiJourneyResult = message;},result);
   return result;
 }

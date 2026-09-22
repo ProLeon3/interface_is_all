@@ -1,4 +1,4 @@
-// 固定模型配合真实浏览器：已有项目选择、分析、证据、编辑、确认和后续检查。
+// 页面内固定替身扮演 coding agent：已有项目选择、导出源码分析请求、导入提案、证据、编辑、确认和后续检查。
 async page => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const errors = [];
@@ -9,6 +9,32 @@ async page => {
   const openAnalysis = async () => {
     if (!await page.locator('#design-starter').isVisible()) await page.locator('#adjust-design').click();
     if (!await page.locator('#initial-analysis-entry').isVisible()) await page.locator('#mode-code').click();
+  };
+  // 导出请求 → 固定替身生成响应 → 经「设计工具」的真实文件控件导入，复现与 coding agent 的文件交换。
+  const exchange = async button => {
+    const exported = page.waitForResponse(r => r.url().endsWith('/api/design-request') && r.request().method() === 'POST');
+    const requestDownload = page.waitForEvent('download');
+    await page.locator(button).click();
+    const result = await exported;
+    assert(result.ok(),`导出请求失败：${await result.text()}`);
+    const request = await result.json();
+    assert((await requestDownload).suggestedFilename().endsWith('request.json'),'请求文件未下载');
+    const responseDownload = page.waitForEvent('download');
+    await page.evaluate(request => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(window.__fixedAgent(request))],{type:'application/json'}));
+      const link = document.createElement('a'); link.href = url; link.download = 'agent-response.json'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url),1000);
+    },request);
+    const responsePath = await (await responseDownload).path();
+    // 「导入 agent 提案」按钮的禁用状态决定能否导入；playwright-cli 会把原生文件选择框当作模态状态拦截，
+    // 因此直接向它打开的隐藏文件控件设置文件，仍经过同一个 change 处理器和服务端校验。
+    assert(!await page.locator('#proposal-import').isDisabled(),'导入 agent 提案入口不可用');
+    const imported = page.waitForResponse(r => r.url().endsWith('/api/proposal-import') && r.request().method() === 'POST');
+    await page.locator('#proposal-file').setInputFiles(responsePath);
+    const importResult = await imported;
+    assert(importResult.ok(),`导入提案失败：${await importResult.text()}`);
+    await page.locator('#proposal-accept:not([disabled])').waitFor();
+    return importResult.json();
   };
   await page.setViewportSize({width:1440,height:1000});
   await page.locator('#choose-project:not([disabled])').waitFor();
@@ -21,13 +47,10 @@ async page => {
   await dialog.waitFor({state:'hidden'});
   await page.locator('#analyze-initial:not([disabled])').waitFor();
   assert((await state()).draft === null,'选择项目创建了草稿');
-  const response = page.waitForResponse(r => r.url().endsWith('/api/initial-analysis') && r.request().method() === 'POST');
-  await page.locator('#analyze-initial').click();
-  const generated = await response;
-  assert(generated.ok(),await generated.text());
-  let proposal = await generated.json();
-  await page.locator('#proposal-accept:not([disabled])').waitFor();
+  assert(await page.locator('#analyze-initial').innerText() === '导出源码分析请求','首次分析入口文案错误');
+  let proposal = await exchange('#analyze-initial');
   assert((await state()).confirmed === null && (await state()).draft === null,'分析越过草稿或确认边界');
+  assert(proposal.request_id && proposal.request.source,'提案缺少请求绑定或源码来源');
   assert(await page.locator('.collaboration-edge').count() === 1,'现有协作没有展示');
   assert(proposal.after.forbidden_dependencies.length === 0,'分析增加了禁止规则');
   await page.locator('[data-interface="request-refund"]').click();
@@ -75,25 +98,22 @@ async page => {
   // 模拟本次加载失败的 HTTP 响应，确认旧来源不会遮住新的范围诊断。
   const failedSource = JSON.parse(JSON.stringify(proposal.request.source));
   failedSource.facts.diagnostics = [{code:'package_load',subject:'missing-package',message:'固定回归：本次包加载失败'}];
-  await page.route('**/api/initial-analysis',route => route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({error:'固定回归：加载不完整',code:'analysis_incomplete',source:failedSource})}),{times:1});
+  await page.route('**/api/design-request',route => route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({error:'固定回归：加载不完整',code:'analysis_incomplete',source:failedSource})}),{times:1});
   await openAnalysis();
   await page.locator('#analyze-initial:not([disabled])').click();
   await page.locator('#analysis-evidence').getByRole('heading',{name:'分析未完成',exact:true}).waitFor();
   const scope = page.locator('[data-analysis-section="scope"]');
   if (!await scope.evaluate(node => node.open)) await scope.locator(':scope > summary').click();
   assert((await page.locator('#analysis-evidence').innerText()).includes('本次包加载失败'),'失败时显示了旧范围');
-  await page.unroute('**/api/initial-analysis');
+  await page.unroute('**/api/design-request');
   await openAnalysis();
-  const restarted = page.waitForResponse(r => r.url().endsWith('/api/initial-analysis') && r.request().method() === 'POST');
-  await page.locator('#analyze-initial:not([disabled])').click();
-  const regenerated = await restarted;
-  assert(regenerated.ok(),await regenerated.text());
-  proposal = await regenerated.json();
+  await page.locator('#analyze-initial:not([disabled])').waitFor();
+  proposal = await exchange('#analyze-initial');
   await page.locator('#proposal-accept:not([disabled])').click();
   await page.locator('#proposal-review').waitFor({state:'hidden'});
   await page.locator('.node-select[data-module="payment"]').click();
   await page.getByLabel('职责与边界').fill('用户核对：退款示例只检查支付标识，不连接支付系统。');
-  assert(await page.locator('#ai-generate').isDisabled(),'未保存编辑未阻止模型覆盖');
+  assert(await page.locator('#ai-generate').isDisabled() && await page.locator('#proposal-import').isDisabled(),'未保存编辑未阻止导出或导入');
   await page.locator('#save-draft').click();
   await page.locator('#review-design:not([disabled])').waitFor();
   await page.reload();
@@ -109,7 +129,7 @@ async page => {
   // 首次确认后仍能主动进入重新分析，默认页面则回到设计图。
   await openAnalysis();
   await page.locator('#analyze-initial').waitFor();
-  assert(await page.locator('#analyze-initial').innerText() === '重新分析代码','确认后没有切换到重新分析');
+  assert(await page.locator('#mode-code').innerText() === '重新分析代码' && await page.locator('#analyze-initial').innerText() === '导出重新分析请求','确认后没有切换到重新分析');
   await page.locator('#close-composer').click();
   await page.getByRole('button',{name:/^代码检查/}).click();
   const checked = page.waitForResponse(r => r.url().endsWith('/api/check') && r.request().method() === 'POST');
@@ -124,11 +144,11 @@ async page => {
   const download = page.waitForEvent('download');
   await page.evaluate(({proposal,current,report}) => {
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([JSON.stringify({verification:'fixed-model-browser',proposal,current,report},null,2)],{type:'application/json'}));
+    link.href = URL.createObjectURL(new Blob([JSON.stringify({verification:'fixed-agent-browser',proposal,current,report},null,2)],{type:'application/json'}));
     link.download = 'initial-journey.json'; link.click();
   },{proposal,current,report});
   await (await download).saveAs('initial-journey.json');
-  const result = 'VERIFIED: 初次分析浏览器流程、跨窗口恢复、源码证据、草稿编辑重开、明确确认与后续检查';
+  const result = 'VERIFIED: 初次分析浏览器流程：导出源码请求、导入提案、跨窗口恢复、源码证据、草稿编辑重开、明确确认与后续检查';
   await page.evaluate(value => {window.__initialJourneyResult=value;},result);
   return result;
 }

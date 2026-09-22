@@ -1,0 +1,55 @@
+{
+  "baseline": {
+    "revision": "8e505cab33401f85240ccd407757f9cbf66f133e92073a29503c1546b4f8efa6",
+    "parent_revision": "",
+    "design_hash": "445ec85287eeb04eaaca68fc9d65998dea330dd5664f1682e7457451ec52c861",
+    "confirmed_at": "2026-09-22T03:28:13.702688869Z",
+    "confirmed_by": "固定响应浏览器回归",
+    "design": {
+      "schema_version": 1,
+      "modules": [
+        {
+          "id": "order",
+          "root": "order",
+          "responsibility": "管理订单取消，已付款订单通过退款能力协作"
+        },
+        {
+          "id": "refund",
+          "root": "refund",
+          "responsibility": "受理退款申请并验证可退款额度"
+        }
+      ],
+      "interfaces": [
+        {
+          "id": "cancel-order",
+          "module_id": "order",
+          "name": "取消订单",
+          "description": "对已付款订单申请退款后取消订单"
+        },
+        {
+          "id": "request-refund",
+          "module_id": "refund",
+          "name": "申请退款",
+          "description": "根据支付记录受理退款",
+          "semantics": {
+            "inputs": "支付标识和退款金额",
+            "outputs": "退款申请编号",
+            "errors": "退款金额越界时拒绝；重复请求返回原退款申请编号"
+          }
+        }
+      ],
+      "forbidden_dependencies": [],
+      "collaborations": [
+        {
+          "id": "order-refund",
+          "from": "order",
+          "interface_id": "request-refund",
+          "purpose": "取消已付款订单时先申请退款"
+        }
+      ]
+    }
+  },
+  "instructions": "请按 baseline.design 实现功能，保留模块职责、接口含义和协作约定。设计需要调整时先请用户确认；不要为迁就代码改写基准。完成后运行 archdesign check，并结合代码审阅核对具体接口协作。未画出的关系不自动违规，Go 包导入检查不能证明运行时接口调用符合设计。业务测试与验收由开发流程完成。",
+  "schema_version": 1,
+  "status": "confirmed"
+}
