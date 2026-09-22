@@ -1,7 +1,7 @@
 # skill 分发安装实现依据
 
 确认日期：2026-09-22  
-状态：已实施（2026-09-22；`<owner>` 取 GitHub 登录账号 `ProLeon3`，仓库名 `interface_is_all` 不变）。实现选择、验证记录与 UNVERIFIED 列表见 [docs/skill-distribution.md](docs/skill-distribution.md)；「改动清单」第 6 步推送与远端验证、「验收依据」第 5 项本机全局安装验证待用户提供仓库并授权后进行。本文其余内容保留实施前的原文。
+状态：已实施（2026-09-22；`<owner>` 取 GitHub 登录账号 `ProLeon3`，仓库名 `interface_is_all` 不变）。实现选择、验证记录与 UNVERIFIED 列表见 [docs/skill-distribution.md](docs/skill-distribution.md)；「改动清单」第 6 步已于同日完成：仓库 https://github.com/ProLeon3/interface_is_all（公开），标签 `v0.1.0`，远端 `go install` 与 `npx skills add` 均已验证；「验收依据」第 5 项本机全局安装由用户自行验证。本文其余内容保留实施前的原文。
 
 目标：任何人在自己的机器上用两条命令装好本项目，然后在目标项目里输入 `/interface_design @spec.md` 即可使用：
 

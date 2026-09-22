@@ -104,7 +104,7 @@ npx skills add ProLeon3/interface_is_all
 npx skills add ProLeon3/interface_is_all -g
 ```
 
-`npx skills add` 只复制 `skills/interface_design/` 这一个目录（`SKILL.md`、`scripts/`、`references/`、`examples/`），不编译程序，也没有安装钩子；安装位置会写 `skills-lock.json` 记录来源与内容哈希，之后用 `npx skills update` 更新。Claude Code 通过 `.claude/skills/interface_design` 软链发现该 skill；Codex 直接读 `.agents/skills`，是否会扫描 `~/.agents/skills` 未查证，见 [docs/agent-skill.md](docs/agent-skill.md) 的 UNVERIFIED 列表。仓库推送到 GitHub 之前 `owner/repo` 形式不可用，可以用本仓库的绝对路径作为来源。
+`npx skills add` 只复制 `skills/interface_design/` 这一个目录（`SKILL.md`、`scripts/`、`references/`、`examples/`），不编译程序，也没有安装钩子；安装位置会写 `skills-lock.json` 记录来源与内容哈希，之后用 `npx skills update` 更新。Claude Code 通过 `.claude/skills/interface_design` 软链发现该 skill；Codex 直接读 `.agents/skills`，是否会扫描 `~/.agents/skills` 未查证，见 [docs/agent-skill.md](docs/agent-skill.md) 的 UNVERIFIED 列表。源仓库为 <https://github.com/ProLeon3/interface_is_all>，`v0.1.0` 起可安装；本地开发时也可以把本仓库的绝对路径作为 `npx skills add` 的来源。
 
 在本仓库开发 skill 时可以不经 CLI，直接把源目录软链到用户目录，改动即时生效：
 

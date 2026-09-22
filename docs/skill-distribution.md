@@ -9,7 +9,7 @@ go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest
 npx skills add ProLeon3/interface_is_all
 ```
 
-本文区分「本地已验证」与「推送后才能验证」：前者由下文的命令记录支撑；后者见文末 UNVERIFIED 列表。
+本文记录本地验收与推送后的远端验证，都由下文的命令记录支撑；仍未验证的项见文末 UNVERIFIED 列表。源仓库：<https://github.com/ProLeon3/interface_is_all>（公开），首个标签 `v0.1.0`。
 
 ## 改动清单
 
@@ -44,7 +44,7 @@ npx skills add ProLeon3/interface_is_all
 ## 依据文档没有写明、由实施者判断的事项
 
 1. `<owner>`：用户消息里的占位符未填写；本机 `gh auth status` 登录账号为 `ProLeon3`，与 `~/.agents/.skill-lock.json` 里已有的 `ProLeon3/skills` 来源一致，据此取 `ProLeon3`。仓库名不同时需要同步改 module 路径、所有 import、脚本与 SKILL.md 里的提示文字、README 与本文。
-2. 本机旧软链 `~/.agents/skills/interface_design` 与 `~/.claude/skills/interface_design`：用户消息里的选项未填写，按依据文档「边界」默认不删；验收第 5 项因此未做。
+2. 本机旧软链 `~/.agents/skills/interface_design` 与 `~/.claude/skills/interface_design`：用户消息里的选项未填写，按依据文档「边界」默认不删；用户随后决定验收第 5 项亲自做，不由 agent 执行。
 3. `docs/agent-skill.md` 只在开头加说明，历史路径与验证命令原文不改（依据文档默认值）。
 4. 规则块路径仍写绝对路径（依据文档默认值），没有改成项目相对路径。
 5. Windows 限制写在 SKILL.md 的 `compatibility` 与 README 的安装说明里。
@@ -56,7 +56,7 @@ npx skills add ProLeon3/interface_is_all
 
 ## 验证记录
 
-环境：Go 1.26.6，python3 3.12.3，Node v22.23.2 / npx 10.9.8，skills CLI 1.7.0（`npx -y skills@latest`）。所有验收都在仓库之外的临时目录进行，原始输出保存在本会话的 scratchpad 目录 `…/scratchpad/verify/`（会话临时目录，不入库）：`01-*` 到 `10-*` 依次对应下文各项。下文提案 ID 与 `revision` 只取前 12 位。
+环境：Go 1.26.6，python3 3.12.3，Node v22.23.2 / npx 10.9.8，skills CLI 1.7.0（`npx -y skills@latest`）。所有验收都在仓库之外的临时目录进行。原始输出当时写在 coding agent 的会话临时目录里，会话结束后该目录已被清理，没有保留下来；下文各表是依据当时输出整理的记录。下文提案 ID 与 `revision` 只取前 12 位。
 
 ### 改动清单每步之后的构建检查
 
@@ -110,16 +110,18 @@ T/skills-lock.json  （source 为本仓库的相对路径，sourceType local，c
 
 ### 验收第 5 项：本机全局安装
 
-未做。前提是删除本机两条旧开发软链，用户消息里未给出同意。
+由用户自行验证，不由 agent 执行。步骤：删除 `~/.agents/skills/interface_design` 与 `~/.claude/skills/interface_design` 两条旧开发软链；运行 `npx skills add ProLeon3/interface_is_all -g -y`；在 Claude Code 新会话里确认能列出 `interface_design`，`/interface_design` 能启动工作台并输出状态。结果待回填本文。
 
-### 验收第 6 项：推送与远端验证
+### 验收第 6 项：推送与远端验证（2026-09-22 完成）
 
-未做。本地全部通过后等用户提供 GitHub 仓库并授权推送。
+- 提交 `cf279f9` 后用 `gh repo create ProLeon3/interface_is_all --public --source=. --remote=origin --push` 创建公开仓库。本机 git 走 HTTPS 时出现两次 `gnutls_handshake() failed: The TLS connection was non-properly terminated`，第 3 次推送成功；标签 `git tag -a v0.1.0` 一次推送成功。远端 `refs/heads/main` 与 `refs/tags/v0.1.0` 都指向 `cf279f9`。
+- 临时目录 `GOBIN=<临时目录>/bin go install github.com/ProLeon3/interface_is_all/cmd/archdesign@v0.1.0`：退出码 0，`go: downloading github.com/ProLeon3/interface_is_all v0.1.0`，`archdesign help` 输出用法；`go version -m` 显示 `mod github.com/ProLeon3/interface_is_all v0.1.0 h1:x0pnhe3+dn0ElEkGmB6FfJtY5Ap77AvJ8/NBSt1AlLA=`。module 路径含大写字母 `ProLeon3` 没有造成问题。
+- 另一个临时目录 `go install …@latest`：退出码 0，`go version -m` 同样解析到 `v0.1.0`（同一 `h1` 哈希）。
+- 新临时目录 `npx -y skills@latest add ProLeon3/interface_is_all -y`：CLI 从 `https://github.com/ProLeon3/interface_is_all.git` 克隆，找到 1 个 skill；未指定 `--agent` 时自动检测到 13 个 agent，结果仍只有 `./.agents/skills/interface_design/`（universal）与 `./.claude/skills/interface_design -> ../../.agents/skills/interface_design` 软链，加 `skills-lock.json`（`source: ProLeon3/interface_is_all`，`sourceType: github`，`skillPath: skills/interface_design/SKILL.md`，`computedHash` 与本地路径安装时相同）。`diff -r` 安装目录与仓库 `skills/interface_design/` 逐字一致。
 
 ## UNVERIFIED
 
-- **远端安装**：推送并打 `v0.1.0` 标签后的 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@v0.1.0`、`@latest` 与 `npx skills add ProLeon3/interface_is_all -y`（改动清单第 6 步）。module 路径含大写字母 `ProLeon3`，Go 模块代理用 `!p` 转义大写、GitHub 对仓库路径大小写不敏感，两者组合未实测。
-- **本机全局安装后的发现**：`npx skills add … -g` 后 Claude Code 新会话能否列出 `interface_design` 并用 `/interface_design` 启动工作台（验收第 5 项）。项目范围安装产生的软链布局与 `docs/agent-skill.md` 已验证的全局软链布局一致，但没有在 Claude Code 新会话里用 CLI 安装的副本实测。
+- **本机全局安装后的发现**：`npx skills add … -g` 后 Claude Code 新会话能否列出 `interface_design` 并用 `/interface_design` 启动工作台（验收第 5 项），由用户自行验证，结果待回填。项目范围安装产生的软链布局与 `docs/agent-skill.md` 已验证的全局软链布局一致。
 - **Codex 发现**：CLI 标记 `universal: Codex`，本次未启动 Codex 验证；`~/.agents/skills` 是否被扫描沿用 `docs/agent-skill.md` 的 UNVERIFIED。
 - **`npx skills update`**：未跑更新流程；`skills-lock.json` 的 `computedHash` 是否随内容变化触发更新未验证。
 - **示例响应已过期**：`skills/interface_design/examples/initial-analysis-response.json` 的依据行号对应提交 ebc2832 时的 `examples/todo`，当前源码（360eff6 之后）已变，直接导入会被拒绝；SKILL.md 已注明示例只示范格式、内容不能照抄，但建议单独重新生成一份与当前 todo 源码一致的示例。本次未改。
