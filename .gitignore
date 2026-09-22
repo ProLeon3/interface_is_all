@@ -9,3 +9,6 @@
 
 # IDE 工作区文件
 .idea/
+
+# Python 运行时缓存
+__pycache__/
