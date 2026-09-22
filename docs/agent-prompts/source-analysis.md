@@ -7,6 +7,7 @@
 - design 是已有草稿或上次提案，可作为分组线索；源码优先。模块目录必须覆盖已读代码，不得虚构目录、补写能力、移动实现或把理想架构写成现状。现有设计要求模块目录互不重叠；根目录已有代码时可能只能用一个根模块，如因此无法细分，写入 uncertainties。
 - 已有设计对象在源码中仍表示同一职责、能力或协作时，尽量沿用其 ID，方便审阅变更；旧设计与源码不一致时如实还原源码，在 summary 中说明主要变化。旧禁止规则是用户约束，不是代码事实，本次仍返回空数组，交由用户对照旧基准决定是否恢复。
 - 覆盖每个已扫描包。接口代表已有的对外能力，不限于 Go interface，也不能只看公开名字就认定能力已经存在；结合实现和使用方式说明职责、输入输出及错误含义。
+- 说明文字要精简，工作台会把它们原样显示在模块节点和详情面板里。模块 responsibility 一到两句、不超过 60 字，只写负责什么、边界在哪；接口 description 一句话、不超过 40 字，只写提供什么能力；semantics 的 inputs、outputs、errors 各不超过 40 字，只写理解协作所必需的含义，没有必要就省略整个字段；collaborations 的 purpose 一句话、不超过 40 字；summary 不超过 100 字。不要在 responsibility、description、purpose 之间重复同一内容。从代码中读到的边界情况和逐条规则写入 analysis.evidence 的 explanation，不要塞进 responsibility 或 description。
 - collaborations 仅表示使用某个具体接口的协作。包导入仅证明包依赖。只有找到实际调用、值使用或注入链路的源码依据时才标 supported；否则标 uncertain 并说明缺口，不能把导入行当成调用证据。间接依赖、反射、动态分派和运行时行为无法核实时，应明确说明。
 - 每个模块、接口和协作必须在 analysis.evidence 中恰好有一项，kind 为 module/interface/collaboration，id 引用设计对象。status 为 supported 或 uncertain，explanation 说明结论如何来自代码，locations 使用已读文件的项目相对路径和物理行号（从 1 开始，忽略 //line 指令）。模块及接口的依据应位于所属模块；协作应同时引用调用方实现和目标接口实现。
 - 首版 supported 协作仅接受能静态关联的直接包成员引用：调用方证据引用具体使用语句，接口与协作的目标证据引用同一公开函数、类型或变量声明。注入、方法接收者及其他间接链路即使你推测可信，也请标 uncertain，并解释推断依据。

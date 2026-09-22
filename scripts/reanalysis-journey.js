@@ -132,10 +132,18 @@ async page => {
 
   // 相同设计也要允许确认一次新的源码依据，而不是禁用确认按钮。
   const same = await generate();
-  await accept();
+  // 走「接受并审阅确认」：写入草稿后直接打开审阅窗口；设计与基准相同但源码依据是新的，不能被当作「无需确认」跳过。
+  await page.locator('#proposal-accept-review:not([disabled])').click();
+  await dialog.waitFor({state:'visible'});
   const sameState = await state();
   assert(sameState.draft_hash === current.design_hash,'固定模型没有产生预期的相同设计');
-  const latest = await confirm();
+  assert((await dialog.innerText()).includes('确认前将复核源码'),'接受并审阅确认缺少源码复核说明');
+  await dialog.getByLabel('确认人').fill('重新分析固定响应浏览器验收');
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button',{name:'确认此设计版本',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  await page.locator('#confirmed-view:not([disabled])').waitFor();
+  const latest = (await state()).confirmed;
   assert(latest.revision !== current.revision && latest.design_hash === current.design_hash && latest.source_analysis_id === same.id,'相同设计没有建立新证据版本');
   await page.getByRole('button',{name:/^代码检查/}).click();
   const checked = page.waitForResponse(r => r.url().endsWith('/api/check') && r.request().method() === 'POST');

@@ -1,0 +1,301 @@
+{
+  "request_id": "4a2f3d2d9a3abe6a202450e8bb301091fadd4037d1b3c21d1e9d740aee406058",
+  "id": "d93b59c74c2c46f4e85bf00ff868820d3ae2be3f72fa3da68e2150058c4f1a63",
+  "created_at": "2026-09-22T11:10:46.087783109Z",
+  "expected_draft_hash": "c50ea63242c0728b8bdb3854700d1dd1235b51defafea74c718dec38d0e72b42",
+  "expected_revision": "e46feeb3ddf0655d5b87a4837f834d4322017ab2503488c5ee0e960056fc0d87",
+  "before": {
+    "schema_version": 1,
+    "modules": [
+      {
+        "id": "cli",
+        "root": "cli",
+        "responsibility": "解析 -file 参数与 add、done、list 子命令，输出结果并决定退出状态；不直接读写数据文件。"
+      },
+      {
+        "id": "task",
+        "root": "task",
+        "responsibility": "承载待办业务规则：标题校验、ID 分配不复用、幂等完成、未完成列表与数据文档校验；经 storage 持久化。"
+      },
+      {
+        "id": "storage",
+        "root": "storage",
+        "responsibility": "提供与领域无关的本地 JSON 文档读取与原子写入；仅限单进程，不做多进程互斥。"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行接口",
+        "description": "提供 add、done、list 子命令与前置 -file 参数。",
+        "semantics": {
+          "inputs": "[-file 路径] add 标题 | done ID | list，默认 tasks.json。",
+          "outputs": "add 输出 ID 与标题；list 按 ID 列出未完成任务；成功退出 0。",
+          "errors": "参数错误、空白标题、未知 ID、文件损坏均非零退出。"
+        }
+      },
+      {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务接口",
+        "description": "提供创建、幂等完成与未完成列表查询。",
+        "semantics": {
+          "inputs": "数据文件路径，以及标题或任务 ID。",
+          "outputs": "新任务；完成结果含本次是否变化；按 ID 升序的未完成任务。",
+          "errors": "空白标题、未知 ID、文档损坏或写入失败；出错时不写文件。"
+        }
+      },
+      {
+        "id": "storage-json-document",
+        "module_id": "storage",
+        "name": "JSON 文档存储接口",
+        "description": "完整读取与原子写入 JSON 文档，不解释业务字段。",
+        "semantics": {
+          "inputs": "文件路径；写入时另给完整 JSON 文档。",
+          "outputs": "读取返回文档或「不存在」；写入在原子替换后成功。",
+          "errors": "读取失败或 JSON 损坏报错且不覆盖；写入失败不留半写文件。"
+        }
+      }
+    ],
+    "forbidden_dependencies": [
+      {
+        "id": "task-must-not-depend-on-cli",
+        "from": "task",
+        "to": "cli",
+        "reason": "业务规则不得依赖命令行参数与输出。"
+      },
+      {
+        "id": "cli-must-not-depend-on-storage",
+        "from": "cli",
+        "to": "storage",
+        "reason": "cli 只能经 task 使用数据，不得绕过业务校验。"
+      },
+      {
+        "id": "storage-must-not-depend-on-task",
+        "from": "storage",
+        "to": "task",
+        "reason": "storage 保持领域中立，不了解待办模型。"
+      },
+      {
+        "id": "storage-must-not-depend-on-cli",
+        "from": "storage",
+        "to": "cli",
+        "reason": "storage 不依赖命令行细节。"
+      }
+    ],
+    "collaborations": [
+      {
+        "id": "cli-uses-task-service",
+        "from": "cli",
+        "interface_id": "task-service",
+        "purpose": "把解析后的子命令交给 task 执行业务。"
+      },
+      {
+        "id": "task-uses-storage-json-document",
+        "from": "task",
+        "interface_id": "storage-json-document",
+        "purpose": "每次操作读取文档，状态变化时原子写回。"
+      }
+    ]
+  },
+  "request": {
+    "requirement": "# 真实模型设计后的待办示例\n\n这是独立工作台首轮技术验证的小功能。需求和两轮设计由工作台调用用户配置的真实模型生成；初稿为 `cli`、`task` 两个模块，选中 `task` 后以自然语言要求拆出 `storage`，再由验收代理通过工作台确认示例版本并导出。\n\n本目录代码由工作台外的 coding agent 根据 [design-handoff.json](design-handoff.json) 实现。工作台没有自动生成或修复这些代码。确认记录明确写为「工作台验收代理（示例，不代表用户业务定稿）」，不能将自动化操作解释为用户已完成产品验收。\n\n## 使用\n\n```sh\ncd examples/todo\ngo run -buildvcs=false ./cli -file /tmp/my-todos.json add '核对模块分工'\ngo run -buildvcs=false ./cli -file /tmp/my-todos.json list\ngo run -buildvcs=false ./cli -file /tmp/my-todos.json done 1\ngo run -buildvcs=false ./cli -file /tmp/my-todos.json done 1\n\ngo test -race ./...\n```\n\n`-file` 放在子命令前；默认文件为当前目录的 `tasks.json`。`add` 输出 ID 和标题，`list` 只列出未完成任务，`done` 支持重复执行。空白标题、未知或无效 ID、损坏的数据文件均返回非零退出状态。完成任务不复用 ID，重复完成不重写文件。\n\n范围是单进程本地命令行，不支持多进程同时写同一文件，不包含网络服务或多用户功能。\n\n## 设计与实现对应\n\n| 设计能力 | 实现位置 | 核对结果 |\n| --- | --- | --- |\n| `cli-command` | [cli/main.go](cli/main.go)，`Run` | 只处理参数、输出与退出状态；通过 `task` 完成业务 |\n| `task-service` | [task/task.go](task/task.go)，`Add`、`Complete`、`Pending` | 校验业务文档、标题与 ID，按 ID 稳定返回；通过 `storage` 读写 |\n| `storage-json-document` | [storage/json.go](storage/json.go)，`ReadJSON`、`WriteJSON` | 只处理 JSON 文档，不引用 `task` 或 `cli`；同目录临时文件同步后原子替换 |\n| `cli-uses-task-service` | `cli/main.go` 对上述三项业务函数的调用 | 由源码核对落实 |\n| `task-uses-storage-json-document` | `task/task.go` 的 `read`、`save` | 业务校验成功且状态变化后才写入，由源码与幂等回归核对 |\n\nGo 依赖检查确认未违反四条显式禁止规则，状态为 `passed`；模型语义审查仍为 `not_run`。上述对应关系由 coding agent 对照代码核查，用户仍可进一步审阅语义。业务测试覆盖进程调用式持久化、创建/完成/列表、重复完成不额外写入、无效操作不改数据、损坏文档不覆盖。\n\n完整需求、修改意图和前后设计在 `.architecture/proposals/`；确认版本在 `.architecture/confirmed.json` 与 `.architecture/versions/`。工作台截图与检查报告见[本轮验收记录](../../docs/standalone-workbench.md#真实模型与实际实现验证)。\n\n## 本次新增需求\n\n加截止日期，list 按截止日期排序。\n",
+    "instruction": "",
+    "selection": {
+      "kind": "design",
+      "id": ""
+    },
+    "design": {
+      "schema_version": 1,
+      "modules": [
+        {
+          "id": "cli",
+          "root": "cli",
+          "responsibility": "解析 -file 参数与 add、done、list 子命令，输出结果并决定退出状态；不直接读写数据文件。"
+        },
+        {
+          "id": "task",
+          "root": "task",
+          "responsibility": "承载待办业务规则：标题校验、ID 分配不复用、幂等完成、未完成列表与数据文档校验；经 storage 持久化。"
+        },
+        {
+          "id": "storage",
+          "root": "storage",
+          "responsibility": "提供与领域无关的本地 JSON 文档读取与原子写入；仅限单进程，不做多进程互斥。"
+        }
+      ],
+      "interfaces": [
+        {
+          "id": "cli-command",
+          "module_id": "cli",
+          "name": "待办命令行接口",
+          "description": "提供 add、done、list 子命令与前置 -file 参数。",
+          "semantics": {
+            "inputs": "[-file 路径] add 标题 | done ID | list，默认 tasks.json。",
+            "outputs": "add 输出 ID 与标题；list 按 ID 列出未完成任务；成功退出 0。",
+            "errors": "参数错误、空白标题、未知 ID、文件损坏均非零退出。"
+          }
+        },
+        {
+          "id": "task-service",
+          "module_id": "task",
+          "name": "待办服务接口",
+          "description": "提供创建、幂等完成与未完成列表查询。",
+          "semantics": {
+            "inputs": "数据文件路径，以及标题或任务 ID。",
+            "outputs": "新任务；完成结果含本次是否变化；按 ID 升序的未完成任务。",
+            "errors": "空白标题、未知 ID、文档损坏或写入失败；出错时不写文件。"
+          }
+        },
+        {
+          "id": "storage-json-document",
+          "module_id": "storage",
+          "name": "JSON 文档存储接口",
+          "description": "完整读取与原子写入 JSON 文档，不解释业务字段。",
+          "semantics": {
+            "inputs": "文件路径；写入时另给完整 JSON 文档。",
+            "outputs": "读取返回文档或「不存在」；写入在原子替换后成功。",
+            "errors": "读取失败或 JSON 损坏报错且不覆盖；写入失败不留半写文件。"
+          }
+        }
+      ],
+      "forbidden_dependencies": [
+        {
+          "id": "task-must-not-depend-on-cli",
+          "from": "task",
+          "to": "cli",
+          "reason": "业务规则不得依赖命令行参数与输出。"
+        },
+        {
+          "id": "cli-must-not-depend-on-storage",
+          "from": "cli",
+          "to": "storage",
+          "reason": "cli 只能经 task 使用数据，不得绕过业务校验。"
+        },
+        {
+          "id": "storage-must-not-depend-on-task",
+          "from": "storage",
+          "to": "task",
+          "reason": "storage 保持领域中立，不了解待办模型。"
+        },
+        {
+          "id": "storage-must-not-depend-on-cli",
+          "from": "storage",
+          "to": "cli",
+          "reason": "storage 不依赖命令行细节。"
+        }
+      ],
+      "collaborations": [
+        {
+          "id": "cli-uses-task-service",
+          "from": "cli",
+          "interface_id": "task-service",
+          "purpose": "把解析后的子命令交给 task 执行业务。"
+        },
+        {
+          "id": "task-uses-storage-json-document",
+          "from": "task",
+          "interface_id": "storage-json-document",
+          "purpose": "每次操作读取文档，状态变化时原子写回。"
+        }
+      ]
+    }
+  },
+  "summary": "为任务增加可选截止日期：cli 的 add 接受 -due 日期，task 校验日期并把未完成列表改为按截止日期升序（无日期居后、同日按 ID）；storage 与协作关系不变。",
+  "after": {
+    "schema_version": 1,
+    "modules": [
+      {
+        "id": "cli",
+        "root": "cli",
+        "responsibility": "解析 -file 参数与 add、done、list 子命令，输出结果并决定退出状态；不直接读写数据文件。"
+      },
+      {
+        "id": "task",
+        "root": "task",
+        "responsibility": "承载待办业务规则：标题与截止日期校验、ID 分配不复用、幂等完成、未完成列表排序与数据文档校验；经 storage 持久化。"
+      },
+      {
+        "id": "storage",
+        "root": "storage",
+        "responsibility": "提供与领域无关的本地 JSON 文档读取与原子写入；仅限单进程，不做多进程互斥。"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行接口",
+        "description": "提供 add、done、list 子命令与前置 -file 参数。",
+        "semantics": {
+          "inputs": "[-file 路径] add [-due 日期] 标题 | done ID | list，默认 tasks.json。",
+          "outputs": "add 输出 ID、标题与截止日期；list 按截止日期列出未完成任务；成功退出 0。",
+          "errors": "参数错误、空白标题、无效日期、未知 ID、文件损坏均非零退出。"
+        }
+      },
+      {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务接口",
+        "description": "提供创建、幂等完成与未完成列表查询。",
+        "semantics": {
+          "inputs": "数据文件路径，以及标题与可选截止日期，或任务 ID。",
+          "outputs": "新任务；完成结果含本次是否变化；按截止日期升序、无日期居后的未完成任务。",
+          "errors": "空白标题、无效日期、未知 ID、文档损坏或写入失败；出错时不写文件。"
+        }
+      },
+      {
+        "id": "storage-json-document",
+        "module_id": "storage",
+        "name": "JSON 文档存储接口",
+        "description": "完整读取与原子写入 JSON 文档，不解释业务字段。",
+        "semantics": {
+          "inputs": "文件路径；写入时另给完整 JSON 文档。",
+          "outputs": "读取返回文档或「不存在」；写入在原子替换后成功。",
+          "errors": "读取失败或 JSON 损坏报错且不覆盖；写入失败不留半写文件。"
+        }
+      }
+    ],
+    "forbidden_dependencies": [
+      {
+        "id": "task-must-not-depend-on-cli",
+        "from": "task",
+        "to": "cli",
+        "reason": "业务规则不得依赖命令行参数与输出。"
+      },
+      {
+        "id": "cli-must-not-depend-on-storage",
+        "from": "cli",
+        "to": "storage",
+        "reason": "cli 只能经 task 使用数据，不得绕过业务校验。"
+      },
+      {
+        "id": "storage-must-not-depend-on-task",
+        "from": "storage",
+        "to": "task",
+        "reason": "storage 保持领域中立，不了解待办模型。"
+      },
+      {
+        "id": "storage-must-not-depend-on-cli",
+        "from": "storage",
+        "to": "cli",
+        "reason": "storage 不依赖命令行细节。"
+      }
+    ],
+    "collaborations": [
+      {
+        "id": "cli-uses-task-service",
+        "from": "cli",
+        "interface_id": "task-service",
+        "purpose": "把解析后的子命令交给 task 执行业务。"
+      },
+      {
+        "id": "task-uses-storage-json-document",
+        "from": "task",
+        "interface_id": "storage-json-document",
+        "purpose": "每次操作读取文档，状态变化时原子写回。"
+      }
+    ]
+  }
+}

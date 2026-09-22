@@ -62,7 +62,7 @@ python3 <skill-dir>/scripts/export-request.py --project <project> --kind design 
 
 ### `await_review`（存在待审阅提案，用户没有新意见）
 
-不要重复生成。告诉用户：在工作台看提案 `pending_proposal.id`（摘要在 `summary`），可以「接受并保存草稿」再「审阅并确认」，或选中对象填写意图导出调整请求，或直接在对话里说要怎么改；做完回来说「继续」。
+不要重复生成。告诉用户：在工作台看提案 `pending_proposal.id`（摘要在 `summary`），满意就点「接受并审阅确认」（想先手改就「接受并保存草稿」，编辑后再「审阅并确认」），或选中对象填写意图导出调整请求，或直接在对话里说要怎么改；做完回来说「继续」。
 
 ### `await_baseline_confirmation`（源码分析已接受但未确认）
 
@@ -77,17 +77,19 @@ python3 <skill-dir>/scripts/export-request.py --project <project> --kind initial
 - 输出 `ok:false`：把 `stderr`、`error` 和 `source_scope`（构建范围、诊断、包清单）原样转述给用户，停止本回合。不要尝试缩小范围、分批、或改为 `design` 请求。
 - 输出 `ok:true`：按 `source-analysis.md` 生成含 `analysis` 的响应并导入。源码内容以请求文件 `request.source.facts.files` 为准（`source.files` 列出路径与行数）；磁盘文件与之一致时可直接读磁盘文件定位行号，但导入前不要改动源码。每个模块、接口、协作在 `analysis.evidence` 中恰好一项；协作要同时引用调用语句与目标声明；不能静态关联的标 `uncertain`；`forbidden_dependencies` 必须为空数组；不虚构问题。
 
-回合结束语：请用户在工作台核对源码依据，「接受并保存草稿」，再「审阅并确认」建立现状基准，然后回来说「继续」（并附上需求，若还没给）。
+回合结束语：请用户在工作台核对源码依据，点「接受并审阅确认」建立现状基准（需要先手改就「接受并保存草稿」，编辑后再「审阅并确认」），然后回来说「继续」（并附上需求，若还没给）。
 
 ### `design`（无基准且非 Go 项目，或已有基准，且用户给了需求）
+
+**先判断需求是否已被覆盖**（有基准或草稿时）：用 `archdesign show -project <project> -draft` 读当前设计，对照需求逐条看是否要求当前设计没有的模块、接口能力、协作、禁止规则或职责边界变化。需求只描述现状、或只是把现有设计换种说法时，视为已覆盖：不导出请求，在回复里说明「需求已被当前设计覆盖」并列出对应的模块/接口 ID，告诉用户若确实要改就说出具体差异，或明确说「照样出提案」。然后不带 `--has-requirement` 重新运行状态脚本，按新的 `phase` 行动（例如 `write_rules`）。拿不准或只有部分覆盖时照常出提案，由 `design.md` 限制改动范围。用户明确要求出提案时跳过本判断。
 
 ```sh
 python3 <skill-dir>/scripts/export-request.py --project <project> --kind design --requirement-file <spec.md>
 ```
 
-需求是对话文字时用 `--requirement '<文字>'`。按 `design.md` 生成响应并导入：保留未受影响对象的稳定 ID，已有基准时提案会相对基准展示差异。若状态里 `rules.stale` 为 true，回复里加一句：当前确认版本还没写入规则文件，下一次不带新需求的唤醒会写入。
+需求是对话文字时用 `--requirement '<文字>'`。按 `design.md` 生成响应并导入：未受影响对象保留稳定 ID 和原文，不顺手改写措辞；已有基准时提案会相对基准展示差异。若状态里 `rules.stale` 为 true，回复里加一句：当前确认版本还没写入规则文件，下一次不带新需求的唤醒会写入。
 
-回合结束语：请用户看图；要改就在浏览器选中对象填意图导出调整请求、或直接在对话里说；满意就「接受并保存草稿」再「审阅并确认」；做完回来说「继续」。
+回合结束语：请用户看图；要改就在浏览器选中对象填意图导出调整请求、或直接在对话里说；满意就「接受并审阅确认」，想先手改就「接受并保存草稿」再「审阅并确认」；做完回来说「继续」。
 
 ### `write_rules`（`confirmed.json` 的 `revision` 比规则文件标记块记录的新）
 
@@ -104,7 +106,7 @@ python3 <skill-dir>/scripts/write-rules.py --project <project>
 ## 生成响应并导入
 
 1. 读请求文件（`request_file`）：`request.requirement`、`request.instruction`、`request.selection`、`request.design`（当前设计或父提案结果）、`request.source`（源码分析才有）、`response_schema`。
-2. 读对应指令文档（`prompt_doc`），按它生成**一个 JSON 对象**：`request_id` 原样复制；`summary` 中文变更说明；`design` 是完整设计（不是差量）；含源码时还要 `analysis`。说明文字用中文，ID 用简短英文稳定标识，模块目录是不重叠的项目相对目录。`<skill-dir>/examples/` 里有三份曾成功导入的响应（源码分析、需求设计、继续调整）只示范格式；内容与 `request_id` 都不能照抄。
+2. 读对应指令文档（`prompt_doc`），按它生成**一个 JSON 对象**：`request_id` 原样复制；`summary` 中文变更说明；`design` 是完整设计（不是差量）；含源码时还要 `analysis`。说明文字用中文，ID 用简短英文稳定标识，模块目录是不重叠的项目相对目录。`<skill-dir>/examples/` 里有三份曾成功导入的响应（源码分析、需求设计、继续调整）只示范格式；内容与 `request_id` 都不能照抄，示例里的说明文字偏长，篇幅以指令文档的字数限制为准。
 3. 把响应写到临时文件（不要写进 `<project>`），然后导入：
    ```sh
    archdesign proposal-import -project <project> -file <响应文件>
@@ -131,6 +133,6 @@ archdesign proposal-discard -project <project> -id <pending_proposal.id>
 
 - 本回合做了什么：请求类型、提案 ID、一句话摘要，或未做事的原因（原样转述的程序输出）。
 - 工作台地址：`http://127.0.0.1:8090`（以脚本输出为准），当前项目应为 `<project>`。
-- 用户下一步在浏览器做什么：核对/接受并保存草稿/审阅并确认/选中对象导出调整请求。
+- 用户下一步在浏览器做什么：核对/接受并审阅确认（或接受并保存草稿后再审阅并确认）/选中对象导出调整请求。
 - 做完回来说什么：「继续」，或直接说修改意见/新需求。
 - 若有 `warnings`，逐条转述。

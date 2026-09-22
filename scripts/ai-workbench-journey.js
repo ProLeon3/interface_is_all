@@ -92,10 +92,13 @@ async page => {
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),'手机页面存在横向溢出');
   await page.screenshot({path:'ai-mobile.png',fullPage:true});
   await page.setViewportSize({width:1440,height:1000});
-  await page.locator('#proposal-accept').click();
-  await page.locator('#review-design:not([disabled])').waitFor();
-  await page.locator('#review-design').click();
+  // 「接受并审阅确认」先写入草稿再直接打开审阅窗口，不再需要单独点击「审阅并确认」。
+  await page.locator('#proposal-accept-review').click();
   const dialog = page.getByRole('dialog');
+  await dialog.waitFor({state:'visible'});
+  assert((await dialog.innerText()).includes('审阅并确认设计'),'接受并审阅确认没有打开审阅窗口');
+  const acceptedState = await state();
+  assert(acceptedState.confirmed === null && acceptedState.draft.interfaces.find(a => a.id === 'request-refund')?.module_id === 'refund','接受并审阅确认没有先写入草稿，或在确认前就改变了基准');
   assert((await dialog.innerText()).includes('order → refund · 申请退款'),'最终确认未包含接口协作');
   await dialog.getByLabel('确认人').fill('固定响应浏览器回归');
   await dialog.getByRole('checkbox').check();
@@ -129,7 +132,7 @@ async page => {
   assert((await state()).draft.modules[0].responsibility === '另一个窗口的新职责','旧提案覆盖外部更新');
   assert((await state()).confirmed.revision === confirmed.confirmed.revision,'草稿更新改变了确认快照');
   assert(errors.length === 0,`浏览器错误：${errors.join('; ')}`);
-  const result = `VERIFIED: AI 固定响应回归；导出请求、导入提案、选中修改、继续调整、图形差异、刷新恢复、确认交接、并发保护。初始提案 ${initial.id}`;
+  const result = `VERIFIED: AI 固定响应回归；导出请求、导入提案、选中修改、继续调整、图形差异、刷新恢复、接受并审阅确认、确认交接、并发保护。初始提案 ${initial.id}`;
   await page.evaluate(message => {window.__aiJourneyResult = message;},result);
   return result;
 }

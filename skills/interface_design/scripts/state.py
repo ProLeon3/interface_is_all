@@ -463,7 +463,9 @@ def decide_phase(state, revision):
     if ((not revision and not has_go_mod) or revision) and state["inputs"]["has_requirement"]:
         state["phase"] = "design"
         state["next_action"] = (
-            "以用户需求为 requirement 导出 design 请求，依据 %s 生成响应并导入。" % docs["design"]
+            # 先判断需求是否已被当前设计覆盖，避免对未变化的需求反复生成只改措辞的提案。
+            "先对照 archdesign show -draft 判断需求是否已被当前设计覆盖：已覆盖则不导出请求，告知用户后不带 --has-requirement 重新运行本脚本；"
+            "否则以用户需求为 requirement 导出 design 请求，依据 %s 生成响应并导入，无关对象的文字逐字保留。" % docs["design"]
             + ("（规则文件标记块落后于当前确认版本，本回合先处理需求；提醒用户下一次不带新需求的唤醒会写入规则块。）" if state["rules"]["stale"] else "")
             + remind
         )

@@ -4,8 +4,10 @@
 
 - requirement 是总体需求，instruction 是本次修改意图，selection 是用户选中的对象。围绕意图联动调整职责、接口归属和协作关系；必要时可以修改其他受影响对象。
 - 保留未受影响的约定和稳定 ID。拆分、合并模块或迁移接口时，完整修复引用；不能凭空丢失原有能力。
+- 只改与本次 requirement、instruction 相关的对象。无关对象的说明文字逐字保留，即使超出下文字数限制或措辞可以更好；字数限制只约束本次新写或修改的文字。需求已被当前设计完整覆盖时，原样返回当前设计，summary 说明无需变更及理由。
 - 模块目录使用不重叠的项目相对目录，可以尚未创建。说明文字使用中文，ID 使用简短英文稳定标识。
 - 接口表示对外能力，不要求 Go interface 或逐字段类型定义。以自然语言描述必要的输入含义、输出含义和错误语义。
+- 说明文字要精简，工作台会把它们原样显示在模块节点和详情面板里。模块 responsibility 一到两句、不超过 60 字，只写负责什么、边界在哪；接口 description 一句话、不超过 40 字，只写提供什么能力；semantics 的 inputs、outputs、errors 各不超过 40 字，只写理解协作所必需的含义，没有必要就省略整个字段；collaborations 的 purpose 一句话、不超过 40 字；summary 不超过 100 字。不要在 responsibility、description、purpose 之间重复同一内容，不要罗列实现细节、参数形态或逐条业务规则。
 - collaborations 表示 from 模块使用 interface_id 指向的具体接口，purpose 说明协作目的。接口所属模块决定目标，不能用 forbidden_dependencies 代替协作线。
 - forbidden_dependencies 只约束禁止的直接包引用。未画出的协作不构成违规；接口协作和直接包依赖是不同事实，不可互相推导。
 - 返回的是草稿提案，没有确认效力。不要执行命令、读取文件、声称已实现功能或声称已获用户确认。

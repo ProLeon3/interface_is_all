@@ -52,6 +52,7 @@ skill 不依赖对话记忆。每次唤醒先运行 `start-workbench.sh`，再�
 4. 新出现的规则文件（例如用户后来新建了 `CLAUDE.md`）没有标记块时也算「落后」，下一次唤醒会补写；两个文件都存在时两个都写。
 5. 响应格式样例放在 `skills/interface_design/examples/`，SKILL.md 注明只示范格式。
 6. `state.py` 增加 `--has-requirement`/`--has-feedback` 两个开关，让规则表第 3、4、7 行在脚本输出里成为可区分的 `phase`，而不是让 agent 自己在 SKILL.md 里再分支。
+7. `design` 阶段先判断需求是否已被当前设计覆盖（2026-09-22 补充）。起因：同一份只描述现状的 README 连跑两次，因为两次运行时 `design.md` 的字数要求不同，每次都生成只改措辞的提案。已覆盖时不出提案，改为不带 `--has-requirement` 重跑状态脚本；这是 agent 的语义判断，放在 SKILL.md，`state.py` 只在 `next_action` 里提示。同时 `design.md` 要求无关对象的文字逐字保留，字数限制只约束新写或修改的文字，以免部分变化的需求也夹带无关改写。
 
 ## 安装与发现
 

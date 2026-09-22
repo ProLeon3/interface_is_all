@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "design_revision": "774baec80d0b1238a279d79589c430e203527acd279efe7745cc6475b641bb57",
+  "facts": {
+    "scope": {
+      "goos": "linux",
+      "goarch": "amd64",
+      "cgo_enabled": "1",
+      "go_version": "go1.26.6",
+      "tags": "",
+      "tests": false
+    },
+    "build_files": [
+      {
+        "path": "go.mod",
+        "content": "module example.test/workbench-todo\n\ngo 1.22\n"
+      }
+    ],
+    "packages": [
+      {
+        "import_path": "example.test/workbench-todo/cli",
+        "directory": "cli",
+        "module_id": "cli",
+        "files": [
+          "main.go"
+        ],
+        "excluded": [
+          "main_test.go"
+        ]
+      },
+      {
+        "import_path": "example.test/workbench-todo/storage",
+        "directory": "storage",
+        "module_id": "storage",
+        "files": [
+          "json.go"
+        ],
+        "excluded": [
+          "json_test.go"
+        ]
+      },
+      {
+        "import_path": "example.test/workbench-todo/task",
+        "directory": "task",
+        "module_id": "task",
+        "files": [
+          "task.go"
+        ],
+        "excluded": [
+          "task_test.go"
+        ]
+      }
+    ],
+    "files": [
+      {
+        "path": "cli/main.go",
+        "package_path": "example.test/workbench-todo/cli",
+        "module_id": "cli",
+        "content": "// 待办命令行只处理参数与输出，所有业务操作交给 task。\npackage main\n\nimport (\n\t\"flag\"\n\t\"fmt\"\n\t\"io\"\n\t\"os\"\n\t\"strconv\"\n\t\"strings\"\n\n\t\"example.test/workbench-todo/task\"\n)\n\nfunc main() { os.Exit(Run(os.Args[1:], os.Stdout, os.Stderr)) }\n\n// Run 对应确认设计中的 cli-command，使用可传入的输出流验证退出语义。\nfunc Run(args []string, out, stderr io.Writer) int {\n\tflags := flag.NewFlagSet(\"todo\", flag.ContinueOnError)\n\tflags.SetOutput(stderr)\n\tfile := flags.String(\"file\", \"tasks.json\", \"JSON 数据文件路径\")\n\tif err := flags.Parse(args); err != nil {\n\t\tif err == flag.ErrHelp {\n\t\t\treturn 0\n\t\t}\n\t\treturn 2\n\t}\n\tcommand := flags.Args()\n\tfail := func(err error) int { fmt.Fprintln(stderr, err); return 2 }\n\tif len(command) == 0 {\n\t\treturn fail(fmt.Errorf(\"用法：todo [-file 路径] add [-due YYYY-MM-DD] \u003c标题\u003e | done \u003cID\u003e | list\"))\n\t}\n\tswitch command[0] {\n\tcase \"add\":\n\t\t// -due 放在标题前；日期是否有效由 task 判断，cli 只负责转交。\n\t\taddFlags := flag.NewFlagSet(\"add\", flag.ContinueOnError)\n\t\taddFlags.SetOutput(stderr)\n\t\tdue := addFlags.String(\"due\", \"\", \"截止日期 YYYY-MM-DD，可省略\")\n\t\tif err := addFlags.Parse(command[1:]); err != nil {\n\t\t\treturn 2\n\t\t}\n\t\titem, err := task.Add(*file, strings.Join(addFlags.Args(), \" \"), *due)\n\t\tif err != nil {\n\t\t\treturn fail(err)\n\t\t}\n\t\tfmt.Fprintln(out, formatTask(item))\n\tcase \"done\":\n\t\tif len(command) != 2 {\n\t\t\treturn fail(fmt.Errorf(\"用法：done \u003cID\u003e\"))\n\t\t}\n\t\tid, err := strconv.ParseUint(command[1], 10, 64)\n\t\tif err != nil || id == 0 {\n\t\t\treturn fail(fmt.Errorf(\"ID 必须是正整数\"))\n\t\t}\n\t\titem, changed, err := task.Complete(*file, id)\n\t\tif err != nil {\n\t\t\treturn fail(err)\n\t\t}\n\t\tlabel := \"已经完成\"\n\t\tif changed {\n\t\t\tlabel = \"已完成\"\n\t\t}\n\t\tfmt.Fprintf(out, \"%s %d\\t%s\\n\", label, item.ID, item.Title)\n\tcase \"list\":\n\t\tif len(command) != 1 {\n\t\t\treturn fail(fmt.Errorf(\"list 不接受额外参数\"))\n\t\t}\n\t\titems, err := task.Pending(*file)\n\t\tif err != nil {\n\t\t\treturn fail(err)\n\t\t}\n\t\tfor _, item := range items {\n\t\t\tfmt.Fprintln(out, formatTask(item))\n\t\t}\n\tdefault:\n\t\treturn fail(fmt.Errorf(\"未知命令：%s\", command[0]))\n\t}\n\treturn 0\n}\n\n// formatTask 输出「ID\\t标题」，有截止日期时追加「\\t截止 日期」。\nfunc formatTask(item task.Task) string {\n\tline := fmt.Sprintf(\"%d\\t%s\", item.ID, item.Title)\n\tif item.Due != \"\" {\n\t\tline += \"\\t截止 \" + item.Due\n\t}\n\treturn line\n}\n"
+      },
+      {
+        "path": "storage/json.go",
+        "package_path": "example.test/workbench-todo/storage",
+        "module_id": "storage",
+        "content": "// Package storage 提供中立 JSON 文档读写，不了解待办字段或命令行行为。\npackage storage\n\nimport (\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\n// ReadJSON 返回完整文档；文件不存在时保留 os.ErrNotExist 供业务层初始化状态。\nfunc ReadJSON(path string) ([]byte, error) {\n\tdata, err := os.ReadFile(path)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"读取数据文件：%w\", err)\n\t}\n\tif !json.Valid(data) {\n\t\treturn nil, fmt.Errorf(\"数据文件 JSON 已损坏，原文件未修改\")\n\t}\n\treturn data, nil\n}\n\n// WriteJSON 用同目录临时文件原子替换，只接受有效 JSON，拒绝覆盖已损坏文档。\n// 本示例不支持多个进程同时写同一文件。\nfunc WriteJSON(path string, data []byte) error {\n\tif !json.Valid(data) {\n\t\treturn fmt.Errorf(\"不能保存无效 JSON\")\n\t}\n\tif _, err := ReadJSON(path); err != nil \u0026\u0026 !errors.Is(err, os.ErrNotExist) {\n\t\treturn err\n\t}\n\tdir := filepath.Dir(path)\n\tif err := os.MkdirAll(dir, 0755); err != nil {\n\t\treturn err\n\t}\n\tf, err := os.CreateTemp(dir, \".todo-*\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer os.Remove(f.Name())\n\tdefer f.Close()\n\tif _, err := f.Write(data); err != nil {\n\t\treturn err\n\t}\n\tif err := f.Sync(); err != nil {\n\t\treturn err\n\t}\n\tif err := f.Close(); err != nil {\n\t\treturn err\n\t}\n\tif err := os.Rename(f.Name(), path); err != nil {\n\t\treturn err\n\t}\n\tdirectory, err := os.Open(dir)\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer directory.Close()\n\treturn directory.Sync()\n}\n"
+      },
+      {
+        "path": "task/task.go",
+        "package_path": "example.test/workbench-todo/task",
+        "module_id": "task",
+        "content": "// Package task 维护待办规则，通过 storage 读写中立文档。\npackage task\n\nimport (\n\t\"bytes\"\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"math\"\n\t\"os\"\n\t\"sort\"\n\t\"strings\"\n\t\"time\"\n\n\t\"example.test/workbench-todo/storage\"\n)\n\ntype Task struct {\n\tID    uint64 `json:\"id\"`\n\tTitle string `json:\"title\"`\n\tDone  bool   `json:\"done\"`\n\t// Due 是可选截止日期，格式 YYYY-MM-DD；为空表示没有截止日期，旧文档无需迁移。\n\tDue string `json:\"due,omitempty\"`\n}\n\n// dueLayout 是截止日期唯一接受的格式。\nconst dueLayout = \"2006-01-02\"\n\n// validDue 只接受规范写法的真实日期，空串表示未设置。\nfunc validDue(due string) bool {\n\tif due == \"\" {\n\t\treturn true\n\t}\n\tparsed, err := time.Parse(dueLayout, due)\n\treturn err == nil \u0026\u0026 parsed.Format(dueLayout) == due\n}\n\n// next_id 独立保留已使用编号，完成任务不会造成 ID 重用。\ntype document struct {\n\tVersion int    `json:\"version\"`\n\tNextID  uint64 `json:\"next_id\"`\n\tTasks   []Task `json:\"tasks\"`\n}\n\nfunc read(path string) (document, error) {\n\tdata, err := storage.ReadJSON(path)\n\tif errors.Is(err, os.ErrNotExist) {\n\t\treturn document{Version: 1, NextID: 1, Tasks: []Task{}}, nil\n\t}\n\tif err != nil {\n\t\treturn document{}, err\n\t}\n\tvar doc document\n\tdecoder := json.NewDecoder(bytes.NewReader(data))\n\tdecoder.DisallowUnknownFields()\n\tif err := decoder.Decode(\u0026doc); err != nil {\n\t\treturn document{}, fmt.Errorf(\"待办文档结构无效：%w\", err)\n\t}\n\tif err := decoder.Decode(new(any)); err != io.EOF {\n\t\treturn document{}, fmt.Errorf(\"待办文档包含多余内容\")\n\t}\n\tif doc.Version != 1 || doc.NextID == 0 || doc.Tasks == nil {\n\t\treturn document{}, fmt.Errorf(\"待办文档版本、编号或任务列表无效\")\n\t}\n\tseen := map[uint64]bool{}\n\tfor _, item := range doc.Tasks {\n\t\tif item.ID == 0 || item.ID \u003e= doc.NextID || seen[item.ID] || strings.TrimSpace(item.Title) == \"\" || !validDue(item.Due) {\n\t\t\treturn document{}, fmt.Errorf(\"待办文档包含重复编号或无效任务\")\n\t\t}\n\t\tseen[item.ID] = true\n\t}\n\tsort.Slice(doc.Tasks, func(i, j int) bool { return doc.Tasks[i].ID \u003c doc.Tasks[j].ID })\n\treturn doc, nil\n}\n\nfunc save(path string, doc document) error {\n\tdata, err := json.MarshalIndent(doc, \"\", \"  \")\n\tif err != nil {\n\t\treturn err\n\t}\n\treturn storage.WriteJSON(path, append(data, '\\n'))\n}\n\n// Add 在写入前完成所有业务校验，空标题、无效截止日期或坏文档不会触发持久化。\n// due 为空表示不设截止日期。\nfunc Add(path, title, due string) (Task, error) {\n\ttitle = strings.TrimSpace(title)\n\tif title == \"\" {\n\t\treturn Task{}, fmt.Errorf(\"标题不能为空\")\n\t}\n\tdue = strings.TrimSpace(due)\n\tif !validDue(due) {\n\t\treturn Task{}, fmt.Errorf(\"截止日期 %q 无效，应为 YYYY-MM-DD\", due)\n\t}\n\tdoc, err := read(path)\n\tif err != nil {\n\t\treturn Task{}, err\n\t}\n\tif doc.NextID == math.MaxUint64 {\n\t\treturn Task{}, fmt.Errorf(\"任务编号已用尽\")\n\t}\n\titem := Task{ID: doc.NextID, Title: title, Due: due}\n\tdoc.NextID++\n\tdoc.Tasks = append(doc.Tasks, item)\n\tif err := save(path, doc); err != nil {\n\t\treturn Task{}, err\n\t}\n\treturn item, nil\n}\n\n// Complete 的第二个返回值说明本次是否发生变化；重复完成不产生额外写入。\nfunc Complete(path string, id uint64) (Task, bool, error) {\n\tdoc, err := read(path)\n\tif err != nil {\n\t\treturn Task{}, false, err\n\t}\n\tfor i := range doc.Tasks {\n\t\tif doc.Tasks[i].ID != id {\n\t\t\tcontinue\n\t\t}\n\t\tif doc.Tasks[i].Done {\n\t\t\treturn doc.Tasks[i], false, nil\n\t\t}\n\t\tdoc.Tasks[i].Done = true\n\t\tif err := save(path, doc); err != nil {\n\t\t\treturn Task{}, false, err\n\t\t}\n\t\treturn doc.Tasks[i], true, nil\n\t}\n\treturn Task{}, false, fmt.Errorf(\"任务 %d 不存在\", id)\n}\n\n// Pending 每次读取磁盘，返回尚未完成的任务：按截止日期升序，无截止日期的排在最后，\n// 截止日期相同时按 ID 升序，保证顺序稳定。\nfunc Pending(path string) ([]Task, error) {\n\tdoc, err := read(path)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tresult := []Task{}\n\tfor _, item := range doc.Tasks {\n\t\tif !item.Done {\n\t\t\tresult = append(result, item)\n\t\t}\n\t}\n\t// 规范格式 YYYY-MM-DD 的字符串顺序与日期顺序一致，可直接比较。\n\tsort.SliceStable(result, func(i, j int) bool {\n\t\ta, b := result[i], result[j]\n\t\tif a.Due != b.Due {\n\t\t\tif a.Due == \"\" || b.Due == \"\" {\n\t\t\t\treturn b.Due == \"\"\n\t\t\t}\n\t\t\treturn a.Due \u003c b.Due\n\t\t}\n\t\treturn a.ID \u003c b.ID\n\t})\n\treturn result, nil\n}\n"
+      }
+    ],
+    "entries": [
+      {
+        "id": "example.test/workbench-todo/cli:function:Run",
+        "module_id": "cli",
+        "package_path": "example.test/workbench-todo/cli",
+        "kind": "function",
+        "name": "Run",
+        "code": "func Run(args []string, out, stderr io.Writer) int {\n\tflags := flag.NewFlagSet(\"todo\", flag.ContinueOnError)\n\tflags.SetOutput(stderr)\n\tfile := flags.String(\"file\", \"tasks.json\", \"JSON 数据文件路径\")\n\tif err := flags.Parse(args); err != nil {\n\t\tif err == flag.ErrHelp {\n\t\t\treturn 0\n\t\t}\n\t\treturn 2\n\t}\n\tcommand := flags.Args()\n\tfail := func(err error) int { fmt.Fprintln(stderr, err); return 2 }\n\tif len(command) == 0 {\n\t\treturn fail(fmt.Errorf(\"用法：todo [-file 路径] add [-due YYYY-MM-DD] \u003c标题\u003e | done \u003cID\u003e | list\"))\n\t}\n\tswitch command[0] {\n\tcase \"add\":\n\t\t// -due 放在标题前；日期是否有效由 task 判断，cli 只负责转交。\n\t\taddFlags := flag.NewFlagSet(\"add\", flag.ContinueOnError)\n\t\taddFlags.SetOutput(stderr)\n\t\tdue := addFlags.String(\"due\", \"\", \"截止日期 YYYY-MM-DD，可省略\")\n\t\tif err := addFlags.Parse(command[1:]); err != nil {\n\t\t\treturn 2\n\t\t}\n\t\titem, err := task.Add(*file, strings.Join(addFlags.Args(), \" \"), *due)\n\t\tif err != nil {\n\t\t\treturn fail(err)\n\t\t}\n\t\tfmt.Fprintln(out, formatTask(item))\n\tcase \"done\":\n\t\tif len(command) != 2 {\n\t\t\treturn fail(fmt.Errorf(\"用法：done \u003cID\u003e\"))\n\t\t}\n\t\tid, err := strconv.ParseUint(command[1], 10, 64)\n\t\tif err != nil || id == 0 {\n\t\t\treturn fail(fmt.Errorf(\"ID 必须是正整数\"))\n\t\t}\n\t\titem, changed, err := task.Complete(*file, id)\n\t\tif err != nil {\n\t\t\treturn fail(err)\n\t\t}\n\t\tlabel := \"已经完成\"\n\t\tif changed {\n\t\t\tlabel = \"已完成\"\n\t\t}\n\t\tfmt.Fprintf(out, \"%s %d\\t%s\\n\", label, item.ID, item.Title)\n\tcase \"list\":\n\t\tif len(command) != 1 {\n\t\t\treturn fail(fmt.Errorf(\"list 不接受额外参数\"))\n\t\t}\n\t\titems, err := task.Pending(*file)\n\t\tif err != nil {\n\t\t\treturn fail(err)\n\t\t}\n\t\tfor _, item := range items {\n\t\t\tfmt.Fprintln(out, formatTask(item))\n\t\t}\n\tdefault:\n\t\treturn fail(fmt.Errorf(\"未知命令：%s\", command[0]))\n\t}\n\treturn 0\n}",
+        "location": {
+          "file": "cli/main.go",
+          "line": 18,
+          "column": 1,
+          "end_line": 79
+        }
+      },
+      {
+        "id": "example.test/workbench-todo/storage:function:ReadJSON",
+        "module_id": "storage",
+        "package_path": "example.test/workbench-todo/storage",
+        "kind": "function",
+        "name": "ReadJSON",
+        "code": "func ReadJSON(path string) ([]byte, error) {\n\tdata, err := os.ReadFile(path)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"读取数据文件：%w\", err)\n\t}\n\tif !json.Valid(data) {\n\t\treturn nil, fmt.Errorf(\"数据文件 JSON 已损坏，原文件未修改\")\n\t}\n\treturn data, nil\n}",
+        "location": {
+          "file": "storage/json.go",
+          "line": 13,
+          "column": 1,
+          "end_line": 22
+        }
+      },
+      {
+        "id": "example.test/workbench-todo/storage:function:WriteJSON",
+        "module_id": "storage",
+        "package_path": "example.test/workbench-todo/storage",
+        "kind": "function",
+        "name": "WriteJSON",
+        "code": "func WriteJSON(path string, data []byte) error {\n\tif !json.Valid(data) {\n\t\treturn fmt.Errorf(\"不能保存无效 JSON\")\n\t}\n\tif _, err := ReadJSON(path); err != nil \u0026\u0026 !errors.Is(err, os.ErrNotExist) {\n\t\treturn err\n\t}\n\tdir := filepath.Dir(path)\n\tif err := os.MkdirAll(dir, 0755); err != nil {\n\t\treturn err\n\t}\n\tf, err := os.CreateTemp(dir, \".todo-*\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer os.Remove(f.Name())\n\tdefer f.Close()\n\tif _, err := f.Write(data); err != nil {\n\t\treturn err\n\t}\n\tif err := f.Sync(); err != nil {\n\t\treturn err\n\t}\n\tif err := f.Close(); err != nil {\n\t\treturn err\n\t}\n\tif err := os.Rename(f.Name(), path); err != nil {\n\t\treturn err\n\t}\n\tdirectory, err := os.Open(dir)\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer directory.Close()\n\treturn directory.Sync()\n}",
+        "location": {
+          "file": "storage/json.go",
+          "line": 26,
+          "column": 1,
+          "end_line": 61
+        }
+      },
+      {
+        "id": "example.test/workbench-todo/task:type:Task",
+        "module_id": "task",
+        "package_path": "example.test/workbench-todo/task",
+        "kind": "type",
+        "name": "Task",
+        "code": "Task struct {\n\tID    uint64 `json:\"id\"`\n\tTitle string `json:\"title\"`\n\tDone  bool   `json:\"done\"`\n\t// Due 是可选截止日期，格式 YYYY-MM-DD；为空表示没有截止日期，旧文档无需迁移。\n\tDue string `json:\"due,omitempty\"`\n}",
+        "location": {
+          "file": "task/task.go",
+          "line": 19,
+          "column": 6,
+          "end_line": 25
+        }
+      },
+      {
+        "id": "example.test/workbench-todo/task:function:Add",
+        "module_id": "task",
+        "package_path": "example.test/workbench-todo/task",
+        "kind": "function",
+        "name": "Add",
+        "code": "func Add(path, title, due string) (Task, error) {\n\ttitle = strings.TrimSpace(title)\n\tif title == \"\" {\n\t\treturn Task{}, fmt.Errorf(\"标题不能为空\")\n\t}\n\tdue = strings.TrimSpace(due)\n\tif !validDue(due) {\n\t\treturn Task{}, fmt.Errorf(\"截止日期 %q 无效，应为 YYYY-MM-DD\", due)\n\t}\n\tdoc, err := read(path)\n\tif err != nil {\n\t\treturn Task{}, err\n\t}\n\tif doc.NextID == math.MaxUint64 {\n\t\treturn Task{}, fmt.Errorf(\"任务编号已用尽\")\n\t}\n\titem := Task{ID: doc.NextID, Title: title, Due: due}\n\tdoc.NextID++\n\tdoc.Tasks = append(doc.Tasks, item)\n\tif err := save(path, doc); err != nil {\n\t\treturn Task{}, err\n\t}\n\treturn item, nil\n}",
+        "location": {
+          "file": "task/task.go",
+          "line": 87,
+          "column": 1,
+          "end_line": 110
+        }
+      },
+      {
+        "id": "example.test/workbench-todo/task:function:Complete",
+        "module_id": "task",
+        "package_path": "example.test/workbench-todo/task",
+        "kind": "function",
+        "name": "Complete",
+        "code": "func Complete(path string, id uint64) (Task, bool, error) {\n\tdoc, err := read(path)\n\tif err != nil {\n\t\treturn Task{}, false, err\n\t}\n\tfor i := range doc.Tasks {\n\t\tif doc.Tasks[i].ID != id {\n\t\t\tcontinue\n\t\t}\n\t\tif doc.Tasks[i].Done {\n\t\t\treturn doc.Tasks[i], false, nil\n\t\t}\n\t\tdoc.Tasks[i].Done = true\n\t\tif err := save(path, doc); err != nil {\n\t\t\treturn Task{}, false, err\n\t\t}\n\t\treturn doc.Tasks[i], true, nil\n\t}\n\treturn Task{}, false, fmt.Errorf(\"任务 %d 不存在\", id)\n}",
+        "location": {
+          "file": "task/task.go",
+          "line": 113,
+          "column": 1,
+          "end_line": 132
+        }
+      },
+      {
+        "id": "example.test/workbench-todo/task:function:Pending",
+        "module_id": "task",
+        "package_path": "example.test/workbench-todo/task",
+        "kind": "function",
+        "name": "Pending",
+        "code": "func Pending(path string) ([]Task, error) {\n\tdoc, err := read(path)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tresult := []Task{}\n\tfor _, item := range doc.Tasks {\n\t\tif !item.Done {\n\t\t\tresult = append(result, item)\n\t\t}\n\t}\n\t// 规范格式 YYYY-MM-DD 的字符串顺序与日期顺序一致，可直接比较。\n\tsort.SliceStable(result, func(i, j int) bool {\n\t\ta, b := result[i], result[j]\n\t\tif a.Due != b.Due {\n\t\t\tif a.Due == \"\" || b.Due == \"\" {\n\t\t\t\treturn b.Due == \"\"\n\t\t\t}\n\t\t\treturn a.Due \u003c b.Due\n\t\t}\n\t\treturn a.ID \u003c b.ID\n\t})\n\treturn result, nil\n}",
+        "location": {
+          "file": "task/task.go",
+          "line": 136,
+          "column": 1,
+          "end_line": 159
+        }
+      }
+    ],
+    "dependencies": [
+      {
+        "from_module": "cli",
+        "to_module": "task",
+        "from_package": "example.test/workbench-todo/cli",
+        "to_package": "example.test/workbench-todo/task",
+        "location": {
+          "file": "cli/main.go",
+          "line": 12,
+          "column": 2,
+          "end_line": 12
+        }
+      },
+      {
+        "from_module": "task",
+        "to_module": "storage",
+        "from_package": "example.test/workbench-todo/task",
+        "to_package": "example.test/workbench-todo/storage",
+        "location": {
+          "file": "task/task.go",
+          "line": 16,
+          "column": 2,
+          "end_line": 16
+        }
+      }
+    ],
+    "diagnostics": [],
+    "unassigned_packages": [],
+    "empty_modules": []
+  },
+  "deterministic": {
+    "status": "passed",
+    "violations": []
+  },
+  "semantic_status": "not_run"
+}

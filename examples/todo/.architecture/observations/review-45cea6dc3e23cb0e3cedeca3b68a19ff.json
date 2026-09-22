@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "request_id": "18f2dadf2408e7fd2d921b35a55200207dea02df57df240d277759ce24be8a9d",
+  "design_revision": "774baec80d0b1238a279d79589c430e203527acd279efe7745cc6475b641bb57",
+  "status": "pending_confirmation",
+  "interfaces": [
+    {
+      "status": "pending_confirmation",
+      "design_basis": {
+        "id": "cli-command",
+        "module_id": "cli",
+        "name": "待办命令行接口",
+        "description": "提供 add、done、list 子命令与前置 -file 参数。",
+        "semantics": {
+          "inputs": "[-file 路径] add [-due 日期] 标题 | done ID | list，默认 tasks.json。",
+          "outputs": "add 输出 ID、标题与截止日期；list 按截止日期列出未完成任务；成功退出 0。",
+          "errors": "参数错误、空白标题、无效日期、未知 ID、文件损坏均非零退出。"
+        }
+      },
+      "searched_files": [
+        "cli/main.go"
+      ],
+      "conclusion": {
+        "interface_id": "cli-command",
+        "entry_ids": [
+          "example.test/workbench-todo/cli:function:Run"
+        ],
+        "assessment": "aligned",
+        "reason": "Run 解析前置 -file 与 add、done、list；add 另解析可选 -due 并原样交给 task.Add，日期有效性由 task 判断；add 与 list 经 formatTask 输出 ID、标题及截止日期，list 顺序取自 task.Pending；参数错误、业务错误均以退出码 2 返回。未直接读写数据文件。",
+        "evidence": [
+          {
+            "file": "cli/main.go",
+            "line": 18,
+            "end_line": 79
+          },
+          {
+            "file": "cli/main.go",
+            "line": 81,
+            "end_line": 88
+          }
+        ]
+      }
+    },
+    {
+      "status": "pending_confirmation",
+      "design_basis": {
+        "id": "task-service",
+        "module_id": "task",
+        "name": "待办服务接口",
+        "description": "提供创建、幂等完成与未完成列表查询。",
+        "semantics": {
+          "inputs": "数据文件路径，以及标题与可选截止日期，或任务 ID。",
+          "outputs": "新任务；完成结果含本次是否变化；按截止日期升序、无日期居后的未完成任务。",
+          "errors": "空白标题、无效日期、未知 ID、文档损坏或写入失败；出错时不写文件。"
+        }
+      },
+      "searched_files": [
+        "task/task.go"
+      ],
+      "conclusion": {
+        "interface_id": "task-service",
+        "entry_ids": [
+          "example.test/workbench-todo/task:function:Add",
+          "example.test/workbench-todo/task:function:Complete",
+          "example.test/workbench-todo/task:function:Pending",
+          "example.test/workbench-todo/task:type:Task"
+        ],
+        "assessment": "aligned",
+        "reason": "Add 接收路径、标题与可选截止日期，写入前校验空白标题与日期（validDue 只接受规范 YYYY-MM-DD 的真实日期），出错不写文件；Complete 返回是否变化且重复完成不写入；Pending 按截止日期升序、无日期居后、同日按 ID 返回未完成任务，与设计语义一致。read 对文档中的无效日期视为损坏。",
+        "evidence": [
+          {
+            "file": "task/task.go",
+            "line": 19,
+            "end_line": 37
+          },
+          {
+            "file": "task/task.go",
+            "line": 46,
+            "end_line": 75
+          },
+          {
+            "file": "task/task.go",
+            "line": 87,
+            "end_line": 110
+          },
+          {
+            "file": "task/task.go",
+            "line": 113,
+            "end_line": 132
+          },
+          {
+            "file": "task/task.go",
+            "line": 136,
+            "end_line": 159
+          }
+        ]
+      }
+    },
+    {
+      "status": "pending_confirmation",
+      "design_basis": {
+        "id": "storage-json-document",
+        "module_id": "storage",
+        "name": "JSON 文档存储接口",
+        "description": "完整读取与原子写入 JSON 文档，不解释业务字段。",
+        "semantics": {
+          "inputs": "文件路径；写入时另给完整 JSON 文档。",
+          "outputs": "读取返回文档或「不存在」；写入在原子替换后成功。",
+          "errors": "读取失败或 JSON 损坏报错且不覆盖；写入失败不留半写文件。"
+        }
+      },
+      "searched_files": [
+        "storage/json.go"
+      ],
+      "conclusion": {
+        "interface_id": "storage-json-document",
+        "entry_ids": [
+          "example.test/workbench-todo/storage:function:ReadJSON",
+          "example.test/workbench-todo/storage:function:WriteJSON"
+        ],
+        "assessment": "aligned",
+        "reason": "本次未改动。ReadJSON 完整读取并校验 JSON，不存在时保留 os.ErrNotExist；WriteJSON 拒绝无效 JSON 与覆盖已损坏文件，经同目录临时文件原子替换；不解释待办字段，截止日期仅作为文档内容透传。",
+        "evidence": [
+          {
+            "file": "storage/json.go",
+            "line": 13,
+            "end_line": 22
+          },
+          {
+            "file": "storage/json.go",
+            "line": 26,
+            "end_line": 61
+          }
+        ]
+      }
+    }
+  ],
+  "concerns": []
+}

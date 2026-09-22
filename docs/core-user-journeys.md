@@ -73,8 +73,8 @@ WORKBENCH_BROWSER_CONFIG=/绝对路径/playwright.json bash scripts/verify-workb
 
 - 用户目标：通过需求和修改意图联动调整模块、接口与协作，审阅后将确认版交给外部实现。
 - 前置条件：当前没有未保存编辑；有一个能读取请求文件并返回响应的 coding agent，回归中由固定响应替身扮演。
-- 操作步骤：输入需求并导出设计请求；导入 agent 提案；选中模块、具体接口或协作线；描述修改并再次导出、导入；查看图形差异及修改前后；继续调整或接受到草稿；单独审阅确认；下载确认交接包。
-- 可观察结果：只接受本项目导出请求对应的响应；提案不自动改写草稿或确认版本；接口迁移同时改变协作目标；新增、修改和删除可见；键盘选择后保留焦点；刷新恢复待审阅提案；外部版本变化阻止接受旧结果；交接只包含已确认版。
+- 操作步骤：输入需求并导出设计请求；导入 agent 提案；选中模块、具体接口或协作线；描述修改并再次导出、导入；查看图形差异及修改前后；继续调整或接受到草稿；单独审阅确认，或「接受并审阅确认」一步进入审阅窗口；下载确认交接包。
+- 可观察结果：只接受本项目导出请求对应的响应；提案不自动改写草稿或确认版本；接口迁移同时改变协作目标；新增、修改和删除可见；键盘选择后保留焦点；刷新恢复待审阅提案；「接受并审阅确认」先写入草稿再打开审阅窗口，确认前基准不变；外部版本变化阻止接受旧结果；交接只包含已确认版。
 - 可执行检查：`scripts/ai-workbench-journey.js`、`scripts/verify-ai-workbench.sh`，以及 `designer`、`store/proposals_test.go`、`workbench/proposals_test.go`。固定模型只验证程序行为；真实模型与待办实现证据见[独立工作台验收记录](standalone-workbench.md#真实模型与实际实现验证)。
 
 ## CUJ-07：从源码导出分析请求并导入现状提案
@@ -82,7 +82,7 @@ WORKBENCH_BROWSER_CONFIG=/绝对路径/playwright.json bash scripts/verify-workb
 - 用户目标：让 coding agent 依据实际源码还原已有 Go 项目的模块、能力与协作，审阅证据后建立第一个基准，之后对照最新源码重新分析。
 - 前置条件：项目根目录有 `go.mod`；有一个能读取请求文件并返回响应的 coding agent，回归中由固定响应替身扮演。
 - 操作步骤：选择已有项目；导出源码分析请求；导入 agent 提案；查看对象的源码依据、问题与建议；接受为草稿并编辑；明确确认；运行检查；有基准后导出重新分析请求并导入，对照旧基准后再确认。
-- 可观察结果：打开项目不扫描也不写入；导入只接受本项目该次请求的响应，源码或版本变化后拒绝；提案不带禁止规则；接受只写草稿；撤回已接受来源后必须重新分析才能确认；相同设计仍可确认新的源码依据；旧基准在确认前继续用于检查。
+- 可观察结果：打开项目不扫描也不写入；导入只接受本项目该次请求的响应，源码或版本变化后拒绝；提案不带禁止规则；接受只写草稿；撤回已接受来源后必须重新分析才能确认；相同设计仍可确认新的源码依据，走「接受并审阅确认」时同样打开审阅窗口；旧基准在确认前继续用于检查。
 - 可执行检查：`scripts/initial-analysis-journey.js`、`scripts/reanalysis-journey.js`、`scripts/verify-initial-analysis.sh`，以及 `workbench/external_proposals_test.go`、`cmd/archdesign/proposals_test.go`。
 
 ## 基础旅程验证记录（2026-09-19，2026-09-20 回归通过）
@@ -114,5 +114,7 @@ VERIFIED：按 ADR-0002 迁移后，AI 设计与源码分析的浏览器回归�
 | `verify-initial-analysis.sh` | CUJ-07：导出源码分析请求、导入现状提案、源码证据、跨窗口恢复、加载失败诊断优先展示、撤回保护、确认与检查，再导出重新分析请求、对照旧基准并确认相同设计的新依据；[初次分析截图](verification/agent-exchange/initial-desktop.png)、[重新分析截图](verification/agent-exchange/reanalysis-desktop.png)、[初次分析记录](verification/agent-exchange/initial-journey.json)、[重新分析记录](verification/agent-exchange/reanalysis-journey.json) |
 
 固定替身读取工作台导出的请求并返回固定响应，响应通过工作台隐藏的文件控件导入：playwright-cli 会把原生文件选择框当作模态状态拦截，因此脚本断言「导入 agent 提案」按钮可用后直接设置文件，导入仍经过同一个 change 处理器和服务端校验。新增断言覆盖未保存编辑同时禁用导出与导入、提案保留 `request_id` 绑定，以及确认后入口切换为「导出重新分析请求」。记录中的会话令牌已去除。
+
+同日补充「接受并审阅确认」按钮后重跑：`verify-ai-workbench.sh` 的最终确认改走该按钮，断言它先写入草稿、随即打开审阅窗口、确认前 `confirmed` 仍为空；`verify-initial-analysis.sh` 中重新分析的「相同设计确认新源码依据」也改走该按钮，断言审阅窗口照常打开并含源码复核说明。两个脚本退出码均为 0，`go vet ./...` 与 `go test ./...` 通过；桌面 1440×1000 与窄屏 390×844 截图中提案工具栏三个入口同行显示、窄屏无横向溢出。
 
 UNVERIFIED：真实 coding agent 读取请求并返回有效响应的效果、skill 安装、每轮任务自动检查与修复、真实用户易用性。固定替身只证明程序链路，不证明模型生成质量。

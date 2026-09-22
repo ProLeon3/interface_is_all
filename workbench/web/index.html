@@ -73,7 +73,7 @@
         <div class="page-heading"><div><h1>使用指南<span class="heading-dot">.</span></h1><p class="subtitle">在这里约定模块与接口，在编程工具中实现，再回来核对代码。</p></div></div>
         <div class="guide-content">
           <section><h2>先选择要工作的项目</h2><p>工作台读取你选定的本地目录，帮助你设计架构和检查实现。点击「选择项目」输入路径或浏览目录，无需重启；选择只影响当前标签页，刷新后仍会恢复。</p><div class="guide-project"><code id="connected-path" class="code-block"></code><button type="button" data-action="choose-project">选择其他项目</button></div></section>
-          <section><h2>新项目：先设计，再实现</h2><ol><li>在 coding agent 中讨论需求；可从这里导出设计请求，或手动创建模块。导入 agent 提案后审阅变更，接受为草稿，再单独确认。</li><li>coding agent 读取已确认设计后实现；也可通过「交接已确认设计」导出 JSON。</li><li>完成代码后回到「代码检查」，运行依赖检查；接口能力与职责由外部审查工具核对，再导入结果审阅。</li></ol></section>
+          <section><h2>新项目：先设计，再实现</h2><ol><li>在 coding agent 中讨论需求；可从这里导出设计请求，或手动创建模块。导入 agent 提案后审阅变更，「接受并审阅确认」一步进入定稿；想先手改就先「接受并保存草稿」。</li><li>coding agent 读取已确认设计后实现；也可通过「交接已确认设计」导出 JSON。</li><li>完成代码后回到「代码检查」，运行依赖检查；接口能力与职责由外部审查工具核对，再导入结果审阅。</li></ol></section>
           <section><h2>已有 Go 项目：从代码开始</h2><ol><li>从「分析已有代码」导出源码请求，交给 coding agent 分析。在「设计工具」导入 agent 提案。</li><li>核对图上的模块、接口与源码依据，接受提案为草稿，再审阅确认整个设计版本。</li><li>确认后即可进入「代码检查」，无需先交接或重新实现。有问题时调整设计或代码，再次检查。</li></ol><p>有了已确认设计，就可以在设计和检查之间来回工作。修改或保存草稿不会切换检查基准，只有再次确认才会替换它。</p></section>
           <p class="guide-boundary">依赖检查只检查明确禁止的直接包引用，不会自动运行接口能力审查，也不代表业务功能正确。能力审查的模型判断始终需要你核查。</p>
           <details id="guide-advanced"><summary>命令行与文件协作</summary><p>也可以通过命令行启动工作台、由外部工具写入草稿，或查看已确认设计并运行检查：</p><pre class="code-block">archdesign serve -addr 127.0.0.1:8090

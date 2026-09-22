@@ -28,15 +28,22 @@ func Run(args []string, out, stderr io.Writer) int {
 	command := flags.Args()
 	fail := func(err error) int { fmt.Fprintln(stderr, err); return 2 }
 	if len(command) == 0 {
-		return fail(fmt.Errorf("用法：todo [-file 路径] add <标题> | done <ID> | list"))
+		return fail(fmt.Errorf("用法：todo [-file 路径] add [-due YYYY-MM-DD] <标题> | done <ID> | list"))
 	}
 	switch command[0] {
 	case "add":
-		item, err := task.Add(*file, strings.Join(command[1:], " "))
+		// -due 放在标题前；日期是否有效由 task 判断，cli 只负责转交。
+		addFlags := flag.NewFlagSet("add", flag.ContinueOnError)
+		addFlags.SetOutput(stderr)
+		due := addFlags.String("due", "", "截止日期 YYYY-MM-DD，可省略")
+		if err := addFlags.Parse(command[1:]); err != nil {
+			return 2
+		}
+		item, err := task.Add(*file, strings.Join(addFlags.Args(), " "), *due)
 		if err != nil {
 			return fail(err)
 		}
-		fmt.Fprintf(out, "%d\t%s\n", item.ID, item.Title)
+		fmt.Fprintln(out, formatTask(item))
 	case "done":
 		if len(command) != 2 {
 			return fail(fmt.Errorf("用法：done <ID>"))
@@ -63,10 +70,19 @@ func Run(args []string, out, stderr io.Writer) int {
 			return fail(err)
 		}
 		for _, item := range items {
-			fmt.Fprintf(out, "%d\t%s\n", item.ID, item.Title)
+			fmt.Fprintln(out, formatTask(item))
 		}
 	default:
 		return fail(fmt.Errorf("未知命令：%s", command[0]))
 	}
 	return 0
+}
+
+// formatTask 输出「ID\t标题」，有截止日期时追加「\t截止 日期」。
+func formatTask(item task.Task) string {
+	line := fmt.Sprintf("%d\t%s", item.ID, item.Title)
+	if item.Due != "" {
+		line += "\t截止 " + item.Due
+	}
+	return line
 }

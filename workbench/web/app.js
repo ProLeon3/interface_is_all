@@ -571,6 +571,7 @@ async function connect() {
   } catch (error) {updateConnection(false);errorNotice(error);renderTop();}
 }
 bindSourceEvidence(state);
-ai = initAI(state,{renderDesign,renderTop,errorNotice,invalidate:() => {mutationVersion++;},sync,revision});
+// reviewDesign 交给提案面板，供「接受并审阅确认」在写入草稿后直接打开审阅窗口。
+ai = initAI(state,{renderDesign,renderTop,errorNotice,invalidate:() => {mutationVersion++;},sync,revision,reviewDesign});
 await connect();
 setInterval(() => sessionReady ? sync() : connect(),3000);

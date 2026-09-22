@@ -3,7 +3,7 @@ import { changes, changeLabel } from './design-graph.js';
 import { renderAnalysis } from './initial-analysis.js';
 
 // 提案与草稿分开保存。刷新可恢复待审阅提案，接受之后才写入磁盘草稿。
-export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate, sync, revision}) {
+export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate, sync, revision, reviewDesign}) {
   const key = () => `interface-ai:${state.server?.project.path}`;
   let reviewHTML = '';
   let wasCompact = false;
@@ -60,7 +60,7 @@ export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate,
     $('#ai-selection').textContent = selection.kind === 'design' ? '整个设计' : `${({module:'模块',interface:'接口',collaboration:'协作'})[selection.kind]} · ${selection.id}`;
     $('#ai-status').textContent = state.aiBusy ? '正在处理上下文与提案…' : '';
     $('#ai-status').hidden = !$('#ai-status').textContent;
-    $('#ai-hint').textContent = state.dirty ? '先保存当前草稿，再导出供 coding agent 使用的上下文。' : state.conflict ? '设计已被外部更新，请先处理版本冲突。' : p?.request.source ? '导出的请求包含本次分析源码和所选对象。交给 coding agent 调整后导入结果。' : '将导出的请求交给 coding agent，导入结果后在图上审阅。接受只保存草稿，确认仍是单独一步。';
+    $('#ai-hint').textContent = state.dirty ? '先保存当前草稿，再导出供 coding agent 使用的上下文。' : state.conflict ? '设计已被外部更新，请先处理版本冲突。' : p?.request.source ? '导出的请求包含本次分析源码和所选对象。交给 coding agent 调整后导入结果。' : '将导出的请求交给 coding agent，导入结果后在图上审阅。「接受并审阅确认」先保存草稿再打开确认窗口；想先手改就用「接受并保存草稿」。';
     // 导出、导入和接受都只执行本地校验；外部 agent 自行完成推理。
     const writeDisabled = !state.online || state.aiBusy || state.busy || state.switching || state.dirty || state.conflict;
     const disabled = writeDisabled;
@@ -77,7 +77,7 @@ export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate,
     $('#analyze-initial').classList.toggle('primary',!compact && !state.dirty);
     $('#discard-initial').hidden = !initial || initial.withdrawn;
     $('#discard-initial').disabled = state.aiBusy || state.busy || !state.online;
-    $('#initial-analysis-state').textContent = state.aiBusy ? '正在读取和核对源码，完成后下载请求…' : state.analysisFailure ? '本次请求未完成，草稿保留。实际读取范围在画布下方。' : initial?.withdrawn ? '已撤回分析，草稿保留。请重新分析并接受新提案后再确认。' : initial ? initial.accepted ? '分析已接受为草稿。可继续编辑，再明确确认整个版本。' : '已有分析提案待审阅；接受前不会替换现有草稿。' : p ? '先处理当前待审阅提案，再开始代码分析。' : state.dirty ? '先保存当前编辑，再分析代码；原草稿将在接受提案时才被替换。' : state.conflict ? '请先处理版本冲突，再分析最新代码。' : reanalysis ? '原草稿、基准及历史依据保留。旧禁止规则会在差异中列出，请审阅后决定是否保留。' : '接受分析结果只保存草稿，确认版本仍需单独审阅。';
+    $('#initial-analysis-state').textContent = state.aiBusy ? '正在读取和核对源码，完成后下载请求…' : state.analysisFailure ? '本次请求未完成，草稿保留。实际读取范围在画布下方。' : initial?.withdrawn ? '已撤回分析，草稿保留。请重新分析并接受新提案后再确认。' : initial ? initial.accepted ? '分析已接受为草稿。可继续编辑，再明确确认整个版本。' : '已有分析提案待审阅；接受前不会替换现有草稿。' : p ? '先处理当前待审阅提案，再开始代码分析。' : state.dirty ? '先保存当前编辑，再分析代码；原草稿将在接受提案时才被替换。' : state.conflict ? '请先处理版本冲突，再分析最新代码。' : reanalysis ? '原草稿、基准及历史依据保留。旧禁止规则会在差异中列出，请审阅后决定是否保留。' : '接受分析结果只保存草稿；「接受并审阅确认」可直接进入确认，也可以先手改再确认。';
     renderAnalysis(state);
     $('#ai-generate').disabled = disabled;
     $('#ai-generate').hidden = false;
@@ -92,7 +92,7 @@ export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate,
     const baselineDiff = p.baseline ? changes(p.baseline.design,p.after) : null;
     const entries = items => items.map(item => `<div class="diff-entry change-${item.status}"><strong>${changeLabel(item.status)}${item.label} · ${e(item.id)}</strong>${item.before ? `<p><span>原约定</span> ${e(JSON.stringify(item.before))}</p>` : ''}${item.after ? `<p><span>新约定</span> ${e(JSON.stringify(item.after))}</p>` : ''}</div>`).join('');
     const html = `<div class="proposal-heading"><div><h2>审阅 AI 提案</h2><p>${e(p.summary)}</p></div><span class="tag warning">${diff.length} 处变更 · 尚未接受</span></div>
-      <div class="proposal-tools"><div class="segmented" aria-label="提案对照"><button type="button" id="proposal-after" aria-pressed="${!state.proposalOriginal}" class="${!state.proposalOriginal ? 'selected' : ''}">修改后与变更</button><button type="button" id="proposal-before" aria-pressed="${!!state.proposalOriginal}" class="${state.proposalOriginal ? 'selected' : ''}">修改前</button></div><div class="button-row"><details id="proposal-more" class="action-menu"><summary>提案工具</summary><div class="action-menu-panel"><button type="button" id="proposal-download">下载提案</button><button type="button" id="proposal-discard" ${state.aiBusy || state.busy ? 'disabled' : ''}>放弃提案</button></div></details><button type="button" id="proposal-accept" class="primary" ${writeDisabled ? 'disabled' : ''}>接受并保存草稿</button></div></div>
+      <div class="proposal-tools"><div class="segmented" aria-label="提案对照"><button type="button" id="proposal-after" aria-pressed="${!state.proposalOriginal}" class="${!state.proposalOriginal ? 'selected' : ''}">修改后与变更</button><button type="button" id="proposal-before" aria-pressed="${!!state.proposalOriginal}" class="${state.proposalOriginal ? 'selected' : ''}">修改前</button></div><div class="button-row"><details id="proposal-more" class="action-menu"><summary>提案工具</summary><div class="action-menu-panel"><button type="button" id="proposal-download">下载提案</button><button type="button" id="proposal-discard" ${state.aiBusy || state.busy ? 'disabled' : ''}>放弃提案</button></div></details><button type="button" id="proposal-accept" ${writeDisabled ? 'disabled' : ''}>接受并保存草稿</button><button type="button" id="proposal-accept-review" class="primary" ${writeDisabled ? 'disabled' : ''}>接受并审阅确认</button></div></div>
       <details class="proposal-diff"><summary>${baselineDiff ? '相对已保存草稿的变更' : '逐项查看变更'}（${diff.length}）</summary>${entries(diff) || (p.request.source ? '<p>设计内容没有变化；接受后仍可确认本次源码依据。</p>' : '<p>设计内容没有变化，可以继续说明修改意图。</p>')}</details>${baselineDiff ? `<details class="proposal-baseline-diff"><summary>相对已确认基准的变更（${baselineDiff.length}）</summary><p>对照生成时的基准版本 <code>${e(p.expected_revision)}</code>。旧禁止规则属于设计约束，本次现状提案不自动保留；可在接受后编辑草稿恢复需要的规则。</p>${entries(baselineDiff) || '<p>设计内容与旧基准相同，本次仍保存新的源码依据。</p>'}</details>` : ''}<p class="graph-legend"><span class="change-added">新增</span><span class="change-modified">修改 / 迁移</span><span class="change-removed">删除</span>图上保留被删除对象的轮廓；详细差异见上方。</p>`;
     if (html !== reviewHTML) {
       // 对照按钮切换视图后仍保留焦点与展开的差异，允许连续键盘审阅。
@@ -114,7 +114,8 @@ export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate,
           state.server.pending_proposal_id = ''; state.proposal = null; state.proposalOriginal = false; remember(); renderDesign(); toast('已放弃提案，原草稿保留。');
         } catch (error) { errorNotice(error); }
       };
-      $('#proposal-accept').onclick = accept;
+      $('#proposal-accept').onclick = () => accept(false);
+      $('#proposal-accept-review').onclick = () => accept(true);
       if (focusedID) document.getElementById(focusedID)?.focus({preventScroll:true});
     }
   }
@@ -136,9 +137,13 @@ export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate,
     } catch (error) { if (error.code === 'version_conflict') state.conflict = true; errorNotice(error); }
     finally { state.aiBusy = false; renderDesign(); }
   }
-  async function accept() {
-    if ($('#proposal-accept').disabled) return;
+  // 接受只把提案写入磁盘草稿，版本校验由服务端在写锁内完成。
+  // review 为 true 时（「接受并审阅确认」），写入成功后直接打开审阅窗口，省去再点一次「审阅并确认」；
+  // 审阅窗口里的「继续编辑」仍可回到草稿手改，两条路径写入的文件相同。
+  async function accept(review = false) {
+    if ($(review ? '#proposal-accept-review' : '#proposal-accept').disabled) return;
     const p = state.proposal;
+    let accepted = false;
     state.busy = true; invalidate(); renderTop();
     try {
       const result = await api(`proposals/${p.id}/accept`,'POST',{});
@@ -150,9 +155,14 @@ export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate,
       }
       state.server.pending_proposal_id = '';
       state.dirty = false; state.proposal = null; state.proposalOriginal = false; remember();
-      toast('提案已接受并保存为草稿。请审阅并确认整个设计版本。');
+      accepted = true;
+      if (!review) toast('提案已接受并保存为草稿。请审阅并确认整个设计版本。');
     } catch (error) { if (error.code === 'version_conflict') state.conflict = true; errorNotice(error); }
     finally { state.busy = false; renderDesign(); }
+    if (!accepted || !review) return;
+    // renderDesign 已按新草稿重算「审阅并确认」的可用性；草稿与已确认基准相同且没有待确认的源码依据时没有可确认的内容。
+    if ($('#review-design').disabled) { toast('提案已接受并保存为草稿；设计与已确认基准一致，无需再次确认。'); return; }
+    reviewDesign();
   }
   async function restore() {
     const project = state.server?.project.path;
