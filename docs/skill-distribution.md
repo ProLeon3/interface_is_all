@@ -124,5 +124,5 @@ T/skills-lock.json  （source 为本仓库的相对路径，sourceType local，c
 - **本机全局安装后的发现**：`npx skills add … -g` 后 Claude Code 新会话能否列出 `interface_design` 并用 `/interface_design` 启动工作台（验收第 5 项），由用户自行验证，结果待回填。项目范围安装产生的软链布局与 `docs/agent-skill.md` 已验证的全局软链布局一致。
 - **Codex 发现**：CLI 标记 `universal: Codex`，本次未启动 Codex 验证；`~/.agents/skills` 是否被扫描沿用 `docs/agent-skill.md` 的 UNVERIFIED。
 - **`npx skills update`**：未跑更新流程；`skills-lock.json` 的 `computedHash` 是否随内容变化触发更新未验证。
-- **另外两份示例响应的上下文已旧**：`examples/design-response.json` 与 `adjust-response.json` 是在 360eff6 之前的 todo 基准上生成的（截止日期需求当时还没实现），说明文字也长于现行字数限制；它们只示范格式，未重新生成。`initial-analysis-response.json` 已按当前源码重新生成并导入验证（判断事项 8）。
+- **另外两份示例响应的上下文已旧**：`examples/design-response.json` 与 `adjust-response.json` 是在 360eff6 之前的 todo 基准上生成的（截止日期需求当时还没实现），说明文字也长于现行字数限制；它们只示范格式，未重新生成。`initial-analysis-response.json` 已按当前源码重新生成并导入验证（判断事项 8）。2026-09-23 三份示例已按重写后的指令全部重新生成并经真实导入验证，见 [docs/agent-skill.md](agent-skill.md) 的「2026-09-23 提示词与展示优化」。
 - **真实 agent 生成质量、浏览器确认后的回合衔接、规则文件遵循率、`@spec.md` 展开方式、后台工作台在各沙箱的存活**：沿用 `docs/agent-skill.md` 的 UNVERIFIED，本次未新增验证。

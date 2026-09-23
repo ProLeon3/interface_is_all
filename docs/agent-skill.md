@@ -6,6 +6,21 @@
 
 > 2026-09-22 补充：本文写成后同日实施了 skill 分发方案。三份指令文档已从 `docs/agent-prompts/` 移到 `skills/interface_design/references/`，`archdesign` 的安装命令改为 `go install github.com/ProLeon3/interface_is_all/cmd/archdesign@latest`，skill 改用 `npx skills add ProLeon3/interface_is_all` 安装。下文交付物表、「安装与发现」与验证记录里的旧路径、软链与旧命令是当时的原始记录，保留原文不改；新方案的实现选择与验证记录见 [docs/skill-distribution.md](skill-distribution.md)。另外，`examples/initial-analysis-response.json` 已于同日按提交 360eff6 之后的 `examples/todo` 源码重新生成并导入验证，不再是本文验证记录第 5 步导入的那一份；`design-response.json` 与 `adjust-response.json` 仍是当时的原件。
 
+## 2026-09-23 提示词与展示优化
+
+目标：用户在工作台看到的文字要精简、准确、可信。这些文字（`summary`、模块职责、接口名称与描述、语义、协作目的、禁止原因、分析依据与建议）由 agent 按 `references/` 下的指令生成，程序原样展示；之前的指令是一份平铺的要点清单，字数要求写在中段，示例响应又比要求长一倍以上，真实模型会照着示例写。本次改动：
+
+| 部分 | 改动 |
+| --- | --- |
+| `references/design.md`、`source-analysis.md`、`capability-review.md` | 重写为同一结构：任务、输出契约（补上此前漏写的 `request_id` 与 `schema_version`）、文字怎么写（字段表：写什么、上限；好坏各一例）、ID 约定、编号规则、边界。字数口径统一为「汉字算 1，英文或数字词算 1，标点不算」。源码分析明确 `issues` 与 `suggestions` 只限架构层面、`uncertainties` 不复述请求已声明的范围、explanation 不写行号；协作依据只需调用方位置，目标声明由程序补上（`designer.completeCollaborationEvidence` 本来就这样做）。能力审查指令保留原判定规则，改成同一结构 |
+| `scripts/lint-response.py`（新增） | 导入前对照请求文件自检响应：`request_id`、顶层字段、字数上限（只约束新写或修改的对象）、ID 规范、依据一一对应、位置文件与行号有效且落在归属模块、supported 协作有调用方位置、禁止规则为空；warning 提示改写了请求里已有的对象、explanation 复述行号、`uncertainties` 复述范围套话、Go 标识符当能力名、空话。SKILL.md 的「生成响应并导入」加了这一步 |
+| `examples/*.json` | 三份示例按新指令重写，在 `examples/todo` 源码副本上走真实流程生成：`initial_analysis` 请求 `a93c1558…` → 提案 `d6b97e27…`（替身接受并确认为基准 `70bdf8d9…`）→ `design` 请求 `b9542a23…`（需求 `examples/spec.md`）→ 提案 `8b811d15…` → 以它为父提案、选中 `task-service` 的调整请求 `0cd93264…` → 提案 `e578ce0a…`。每份都先通过自检再由 `archdesign proposal-import` 导入成功；`state.py` 最后为 `await_review`。用旧的 `design-response.json` 反向跑自检得到 13 条 error（`request_id` 不符、summary 与 11 处说明超限），证明脚本能拦住旧风格 |
+| `scripts/write-rules.py` | 规则块五条约定不变，句子缩短；`examples/todo/AGENTS.md` 已用脚本重新生成（同一 revision，动作 `replaced`） |
+| `SKILL.md` | 回复模板加两条：提案 ID 给前 12 位、不粘贴设计全文；接受确认前只说「待审阅」，不说「已完成」「已生效」，保留自检 warning 时说明理由 |
+| 工作台 `workbench/web` | 提案审阅的「逐项查看变更」与确认窗口的「相对已确认版本的变更」改为逐字段对照（旧值划掉、新值突出，新增或删除的对象列全部字段），不再打印整段 JSON；接口详情缺省语义由「尚未补充」改为「未约定」。`design-graph.js` 新增 `fieldChanges`、`fieldChangesHTML` |
+
+验证：`go vet ./...`、`go test ./...` 通过；四个 Python 脚本 `py_compile` 通过；`verify-ai-workbench.sh`（固定替身：导出、导入、选中修改、继续调整、图形差异、刷新恢复、接受并审阅确认、确认交接、并发保护）与 `verify-initial-analysis.sh`（初次分析与重新分析两条旅程）在本机 Chromium 上均输出 VERIFIED、退出码 0。逐字段对照的实际截图见 [提案差异](verification/ui-simplification/field-diff-proposal.png) 与 [确认窗口差异](verification/ui-simplification/field-diff-review.png)。真实模型在真实项目上按新指令的产出质量仍属 UNVERIFIED。
+
 ## 交付物
 
 | 路径 | 作用 |
@@ -13,6 +28,7 @@
 | `skills/interface_design/SKILL.md` | skill 正文：硬性边界、准备步骤、按 `phase` 的动作与话术、响应生成与导入、规则文件写入、放弃提案、回复模板 |
 | `skills/interface_design/scripts/state.py` | 只读状态脚本：从目标项目 `.architecture/` 重建阶段，输出 JSON（`phase`、`next_action`、`commands` 等） |
 | `skills/interface_design/scripts/export-request.py` | 组装意图 JSON 并调用 `archdesign design-request`；成功输出请求摘要与应遵循的指令文档路径，失败原样保留程序输出 |
+| `skills/interface_design/scripts/lint-response.py` | 导入前对照请求文件自检响应（2026-09-23 新增）：字数上限、依据条目、位置有效性、无关对象是否被改写等 |
 | `skills/interface_design/scripts/write-rules.py` | 把设计遵循约束写入目标项目规则文件的标记块，幂等替换 |
 | `skills/interface_design/scripts/start-workbench.sh` | 检查 `127.0.0.1:8090` 是否已有工作台；没有则以目标项目为 `-project` 后台启动 |
 | `skills/interface_design/examples/` | 本次验收中由本文作者（扮演 agent）手写并成功导入的响应样例与需求样例；只示范格式，`request_id` 绑定当时的项目路径，不能照抄 |

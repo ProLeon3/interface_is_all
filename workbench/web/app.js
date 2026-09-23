@@ -3,7 +3,7 @@ import { renderReports, bindReports } from './reports.js';
 import { projectPicker } from './project-picker.js';
 import { initAI } from './ai-design.js';
 import { objectEvidence, bindSourceEvidence } from './initial-analysis.js';
-import { graphDesign, renderNodes, renderEdges } from './design-graph.js';
+import { graphDesign, renderNodes, renderEdges, changes as designChanges, changeLabel, fieldChangesHTML } from './design-graph.js';
 
 // 本地编辑、磁盘草稿和确认快照各自保存，轮询绝不覆盖尚未保存的编辑。
 const emptyDesign = () => ({schema_version:1, modules:[], interfaces:[], forbidden_dependencies:[]});
@@ -263,7 +263,7 @@ function renderObjectInspector(d) {
   const item = (isInterface ? d.interfaces : d.collaborations).find(item => item.id === state.selection.id);
   if (!item) return;
   const semantic = isInterface ? item.semantics || {} : {};
-  $('#inspector').innerHTML = `<div class="inspector-head"><h2>${isInterface ? '接口详情' : '协作详情'}</h2><button type="button" class="text-button" data-module="${e(state.selected)}">查看模块</button></div><div class="object-inspector"><code>${e(item.id)}</code><h3>${e(isInterface ? item.name : collaborationTitle(d,item))}</h3><p>${e(isInterface ? item.description : item.purpose)}</p>${isInterface ? `<p>所属模块：<button type="button" class="text-button" data-module="${e(item.module_id)}">${e(item.module_id)}</button></p><dl>${[['inputs','输入含义'],['outputs','输出含义'],['errors','错误语义']].map(([key,label]) => `<dt>${label}</dt><dd>${e(semantic[key] || '尚未补充')}</dd>`).join('')}</dl>` : '<p class="muted">这条线表示使用具体接口，不表示直接包引用，也不构成调用方白名单。</p>'}${!readonly() ? `<button type="button" class="soft" ${isInterface ? 'data-edit-interface' : 'data-edit-collaboration'}="${e(item.id)}">编辑${isInterface ? '接口' : '协作'}</button>` : `<p class="readonly-note">${readonlyHint()}</p>`}${isInterface ? `<section class="inspector-section"><h3>使用此接口</h3>${(d.collaborations || []).filter(link => link.interface_id === item.id).map(link => `<p><button type="button" class="text-button" data-select-collaboration="${e(link.id)}">${e(link.from)} → ${e(item.name)}</button></p>`).join('') || '<p class="empty-note">暂无协作约定</p>'}</section>` : ''}${objectEvidence(state,isInterface ? 'interface' : 'collaboration',item.id)}</div>`;
+  $('#inspector').innerHTML = `<div class="inspector-head"><h2>${isInterface ? '接口详情' : '协作详情'}</h2><button type="button" class="text-button" data-module="${e(state.selected)}">查看模块</button></div><div class="object-inspector"><code>${e(item.id)}</code><h3>${e(isInterface ? item.name : collaborationTitle(d,item))}</h3><p>${e(isInterface ? item.description : item.purpose)}</p>${isInterface ? `<p>所属模块：<button type="button" class="text-button" data-module="${e(item.module_id)}">${e(item.module_id)}</button></p><dl>${[['inputs','输入含义'],['outputs','输出含义'],['errors','错误语义']].map(([key,label]) => `<dt>${label}</dt><dd>${e(semantic[key] || '未约定')}</dd>`).join('')}</dl>` : '<p class="muted">这条线表示使用具体接口，不表示直接包引用，也不构成调用方白名单。</p>'}${!readonly() ? `<button type="button" class="soft" ${isInterface ? 'data-edit-interface' : 'data-edit-collaboration'}="${e(item.id)}">编辑${isInterface ? '接口' : '协作'}</button>` : `<p class="readonly-note">${readonlyHint()}</p>`}${isInterface ? `<section class="inspector-section"><h3>使用此接口</h3>${(d.collaborations || []).filter(link => link.interface_id === item.id).map(link => `<p><button type="button" class="text-button" data-select-collaboration="${e(link.id)}">${e(link.from)} → ${e(item.name)}</button></p>`).join('') || '<p class="empty-note">暂无协作约定</p>'}</section>` : ''}${objectEvidence(state,isInterface ? 'interface' : 'collaboration',item.id)}</div>`;
 }
 
 function editCollaboration(id) {
@@ -378,26 +378,16 @@ async function saveDraft() {
   finally { state.busy = false; renderTop(); }
 }
 
-// 按稳定 ID 比较内容，审阅时既展示完整草稿，也列出会删除或改写的原约定。
+// 按稳定 ID 比较内容，审阅时既展示完整草稿，也逐字段列出会删除或改写的原约定。
 function differences(before, after) {
-  const changes = [];
-  for (const [key,label] of [['modules','模块'],['interfaces','能力'],['collaborations','协作'],['forbidden_dependencies','限制']]) {
-    const old = new Map((before?.[key] || []).map(item => [item.id,item]));
-    const next = new Map((after[key] || []).map(item => [item.id,item]));
-    for (const [id,item] of next) {
-      if (!old.has(id)) changes.push(`新增${label} ${id}`);
-      else if (JSON.stringify(old.get(id)) !== JSON.stringify(item)) changes.push(`修改${label} ${id}：${JSON.stringify(old.get(id))} → ${JSON.stringify(item)}`);
-    }
-    for (const [id,item] of old) if (!next.has(id)) changes.push(`删除${label} ${id}：${JSON.stringify(item)}`);
-  }
-  return changes;
+  return designChanges(before || emptyDesign(),after).map(item => `<li>${changeLabel(item.status)}${item.label} <code>${e(item.id)}</code>${fieldChangesHTML(item)}</li>`);
 }
 
 function reviewDesign() {
   if ($('#review-design').disabled) return;
   const reviewed = clone(state.draft), hash = state.server.draft_hash, expected = revision();
-  const changes = differences(state.server.confirmed?.design,reviewed);
-  modal('审阅并确认设计', `<p>确认后，这份设计会替代当前检查基准。外部工具将以它作为实现约束。</p>${state.server?.initial_analysis?.accepted && !state.server.initial_analysis.confirmed ? '<p>本草稿源于代码分析。确认只表示你选择此设计为约束，不表示当前架构合理、业务正确或模型没有遗漏。确认前将复核源码是否变化。</p>' : ''}<div class="banner info"><strong>${reviewed.modules.length} 个模块 · ${reviewed.interfaces.length} 项能力 · ${(reviewed.collaborations || []).length} 条协作 · ${reviewed.forbidden_dependencies.length} 条禁止规则</strong><p>草稿指纹 <code>${short(hash)}</code> · 当前基准 <code>${short(expected)}</code></p></div><details><summary>相对已确认版本的变更（${changes.length}）</summary><ul class="diff-list">${changes.map(text => `<li>${e(text)}</li>`).join('') || '<li>设计内容未改变</li>'}</ul></details><div class="review-document" tabindex="0" aria-label="待确认的完整设计">${reviewed.modules.map(module => `<section class="review-module"><h3>${e(module.id)} <span class="muted">${e(module.root)}</span></h3><p>${e(module.responsibility)}</p><ul>${reviewed.interfaces.filter(item => item.module_id === module.id).map(item => `<li><strong>${e(item.name)}</strong> <code>${e(item.id)}</code><p>${e(item.description)}</p>${item.semantics ? Object.entries(item.semantics).map(([key,value]) => `<p>${({inputs:'输入',outputs:'输出',errors:'错误'})[key]}：${e(value)}</p>`).join('') : ''}</li>`).join('')}</ul></section>`).join('') || '<p>当前设计没有模块。</p>'}${reviewed.collaborations?.length ? `<section class="review-module"><h3>接口协作</h3>${reviewed.collaborations.map(link => `<p>${e(collaborationTitle(reviewed,link))}：${e(link.purpose)}</p>`).join('')}</section>` : ''}${reviewed.forbidden_dependencies.length ? `<section class="review-module"><h3>禁止依赖的方向</h3>${reviewed.forbidden_dependencies.map(rule => `<p><code>${e(rule.id)}</code><br>${e(rule.from)} → ${e(rule.to)}：${e(rule.reason)}</p>`).join('')}</section>` : '<p class="muted">没有禁止依赖规则，所有方向默认允许。</p>'}</div>${field('确认人','actor',state.server.confirmed?.confirmed_by || '')}<label class="checkbox-label"><input type="checkbox" name="reviewed" required>我已审阅以上完整设计，同意将其作为实现与检查基准。</label><div class="dialog-footer"><button type="button" data-close>继续编辑</button><button type="submit" class="primary">确认此设计版本</button></div>`, async (form, dialog) => {
+  const changed = differences(state.server.confirmed?.design,reviewed);
+  modal('审阅并确认设计', `<p>确认后，这份设计会替代当前检查基准。外部工具将以它作为实现约束。</p>${state.server?.initial_analysis?.accepted && !state.server.initial_analysis.confirmed ? '<p>本草稿源于代码分析。确认只表示你选择此设计为约束，不表示当前架构合理、业务正确或模型没有遗漏。确认前将复核源码是否变化。</p>' : ''}<div class="banner info"><strong>${reviewed.modules.length} 个模块 · ${reviewed.interfaces.length} 项能力 · ${(reviewed.collaborations || []).length} 条协作 · ${reviewed.forbidden_dependencies.length} 条禁止规则</strong><p>草稿指纹 <code>${short(hash)}</code> · 当前基准 <code>${short(expected)}</code></p></div><details><summary>相对已确认版本的变更（${changed.length}）</summary><ul class="diff-list">${changed.join('') || '<li>设计内容未改变</li>'}</ul></details><div class="review-document" tabindex="0" aria-label="待确认的完整设计">${reviewed.modules.map(module => `<section class="review-module"><h3>${e(module.id)} <span class="muted">${e(module.root)}</span></h3><p>${e(module.responsibility)}</p><ul>${reviewed.interfaces.filter(item => item.module_id === module.id).map(item => `<li><strong>${e(item.name)}</strong> <code>${e(item.id)}</code><p>${e(item.description)}</p>${item.semantics ? Object.entries(item.semantics).map(([key,value]) => `<p>${({inputs:'输入',outputs:'输出',errors:'错误'})[key]}：${e(value)}</p>`).join('') : ''}</li>`).join('')}</ul></section>`).join('') || '<p>当前设计没有模块。</p>'}${reviewed.collaborations?.length ? `<section class="review-module"><h3>接口协作</h3>${reviewed.collaborations.map(link => `<p>${e(collaborationTitle(reviewed,link))}：${e(link.purpose)}</p>`).join('')}</section>` : ''}${reviewed.forbidden_dependencies.length ? `<section class="review-module"><h3>禁止依赖的方向</h3>${reviewed.forbidden_dependencies.map(rule => `<p><code>${e(rule.id)}</code><br>${e(rule.from)} → ${e(rule.to)}：${e(rule.reason)}</p>`).join('')}</section>` : '<p class="muted">没有禁止依赖规则，所有方向默认允许。</p>'}</div>${field('确认人','actor',state.server.confirmed?.confirmed_by || '')}<label class="checkbox-label"><input type="checkbox" name="reviewed" required>我已审阅以上完整设计，同意将其作为实现与检查基准。</label><div class="dialog-footer"><button type="button" data-close>继续编辑</button><button type="submit" class="primary">确认此设计版本</button></div>`, async (form, dialog) => {
     state.busy = true; mutationVersion++; renderTop();
     try {
       await api('confirm','POST',{draft_hash:hash,expected_revision:expected,actor:form.get('actor').trim()});

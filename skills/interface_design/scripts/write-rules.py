@@ -59,14 +59,14 @@ def render_block(confirmed, review_prompt):
         "<!-- interface_design:begin revision=%s -->" % confirmed["revision"],
         "## 模块与接口设计约束（由 interface_design skill 维护）",
         "",
-        "本项目的模块与接口设计已由用户在浏览器工作台确认，基准保存在 `.architecture/confirmed.json`"
-        "（确认版本 `%s`，确认人「%s」，确认时间 %s）。后续实现请遵守以下约定：" % (confirmed["revision"], confirmed["confirmed_by"], confirmed["confirmed_at"]),
+        "设计基准在 `.architecture/confirmed.json`，由用户在浏览器工作台确认：版本 `%s`，确认人「%s」，时间 %s。实现时遵守："
+        % (confirmed["revision"], confirmed["confirmed_by"], confirmed["confirmed_at"]),
         "",
-        "1. 实现前先读取 `.architecture/confirmed.json`，按其中的模块职责（`modules`）、接口能力（`interfaces`）、协作关系（`collaborations`）与禁止依赖（`forbidden_dependencies`）实现；新代码放在所属模块的目录内。",
-        "2. 不得为了迁就代码改写 `.architecture/` 下的基准、草稿或历史版本。需要变更设计时回到设计流程：在对话中调用 `/interface_design` 说明变更，由用户在浏览器重新审阅并确认。",
-        "3. 每个任务完成后运行 `archdesign check -project <项目根目录>`（在项目根目录可写 `-project .`），并在对话中如实汇报结果：违规（规则 ID、两端包、位置）、`unassigned_packages`、`empty_modules` 与 `incomplete` 诊断。确定性违规先修改代码再复查，不改基准。",
-        "4. 接口能力与模块职责是否偏离设计，程序不做硬检查。任务涉及接口实现或新增公开能力时，运行 `archdesign review-request -project <项目根目录>` 导出能力审查请求，按 `%s` 生成响应后用 `archdesign review-import` 导入，并把结论（均为 `pending_confirmation`）汇报给用户核对。" % review_prompt,
-        "5. 以上是给 agent 的指令，不是硬保障：程序只能硬检查被禁止的直接包依赖，`check` 的 `semantic_status` 始终为 `not_run`。不要向用户声称设计已被强制遵守。",
+        "1. 动手前读 `.architecture/confirmed.json`：按 `modules` 的职责、`interfaces` 的能力、`collaborations` 的协作和 `forbidden_dependencies` 实现，新代码放进所属模块目录。",
+        "2. 不为迁就代码改 `.architecture/` 下的基准、草稿或历史。要改设计就在对话里调用 `/interface_design` 说明，由用户在浏览器重新确认。",
+        "3. 每个任务完成后运行 `archdesign check -project <项目根目录>`，如实汇报：违规（规则 ID、两端包、位置）、`unassigned_packages`、`empty_modules`、`incomplete` 诊断。违规先改代码再复查，不改基准。",
+        "4. 接口能力与职责是否偏离，程序不做硬检查。任务涉及接口实现或新增公开能力时，运行 `archdesign review-request -project <项目根目录>` 导出请求，按 `%s` 生成响应，用 `archdesign review-import` 导入，把结论（均为 `pending_confirmation`）交给用户核对。" % review_prompt,
+        "5. 以上是给 agent 的指令，不是硬保障：程序只硬检查被禁止的直接包依赖，`check` 的 `semantic_status` 始终为 `not_run`。不要对用户说设计已被强制遵守。",
         BLOCK_END,
     ]
     return "\n".join(lines) + "\n"

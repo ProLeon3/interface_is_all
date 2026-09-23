@@ -16,6 +16,17 @@ export function changes(before, after) {
 }
 
 export const changeLabel = status => ({added:'新增',removed:'删除',modified:'修改'})[status] || '';
+
+// 逐字段对照：只列出真正变化的字段，审阅者不必在整段 JSON 里找差异；新增或删除的对象列出全部字段。
+const fieldLabels = {root:'目录',responsibility:'职责',module_id:'所属模块',name:'名称',description:'能力描述','semantics.inputs':'输入','semantics.outputs':'输出','semantics.errors':'错误',from:'调用模块',interface_id:'使用接口',purpose:'协作目的',to:'禁止依赖',reason:'原因'};
+const flatten = item => Object.fromEntries(Object.entries(item || {}).flatMap(([key,value]) => key === 'id' ? [] : key === 'semantics' ? Object.entries(value || {}).map(([sub,text]) => [`semantics.${sub}`,text]) : [[key,value]]));
+export function fieldChanges(before, after) {
+  const a = flatten(before), b = flatten(after);
+  return [...new Set([...Object.keys(a),...Object.keys(b)])].filter(key => a[key] !== b[key]).map(key => ({field:key,label:fieldLabels[key] || key,before:a[key],after:b[key]}));
+}
+export function fieldChangesHTML(item) {
+  return fieldChanges(item.before,item.after).map(({label,before,after}) => `<p><span>${e(label)}</span> ${item.status === 'modified' ? `${before === undefined ? '' : `<del>${e(before)}</del> `}${after === undefined ? '<em>已删去</em>' : `<ins>${e(after)}</ins>`}` : e(item.status === 'added' ? after : before)}</p>`).join('');
+}
 export function graphDesign(d, before) {
   if (!before) return d;
   // 删除对象作为轮廓保留在原位置，迁出的接口也在原模块留下可见标记。

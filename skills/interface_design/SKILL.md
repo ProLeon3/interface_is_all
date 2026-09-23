@@ -79,7 +79,7 @@ python3 <skill-dir>/scripts/export-request.py --project <project> --kind initial
 ```
 
 - 输出 `ok:false`：把 `stderr`、`error` 和 `source_scope`（构建范围、诊断、包清单）原样转述给用户，停止本回合。不要尝试缩小范围、分批、或改为 `design` 请求。
-- 输出 `ok:true`：按 `source-analysis.md` 生成含 `analysis` 的响应并导入。源码内容以请求文件 `request.source.facts.files` 为准（`source.files` 列出路径与行数）；磁盘文件与之一致时可直接读磁盘文件定位行号，但导入前不要改动源码。每个模块、接口、协作在 `analysis.evidence` 中恰好一项；协作要同时引用调用语句与目标声明；不能静态关联的标 `uncertain`；`forbidden_dependencies` 必须为空数组；不虚构问题。
+- 输出 `ok:true`：按 `source-analysis.md` 生成含 `analysis` 的响应并导入。源码内容以请求文件 `request.source.facts.files` 为准（`source.files` 列出路径与行数）；磁盘文件与之一致时可直接读磁盘文件定位行号，但导入前不要改动源码。每个模块、接口、协作在 `analysis.evidence` 中恰好一项；协作的位置写调用方的使用语句，目标声明由程序从接口依据补上；不能静态关联的标 `uncertain`；`forbidden_dependencies` 必须为空数组；`issues`、`suggestions` 没有就给空数组，不虚构。
 
 回合结束语：请用户在工作台核对源码依据，点「接受并审阅确认」建立现状基准（需要先手改就「接受并保存草稿」，编辑后再「审阅并确认」），然后回来说「继续」（并附上需求，若还没给）。
 
@@ -110,8 +110,12 @@ python3 <skill-dir>/scripts/write-rules.py --project <project>
 ## 生成响应并导入
 
 1. 读请求文件（`request_file`）：`request.requirement`、`request.instruction`、`request.selection`、`request.design`（当前设计或父提案结果）、`request.source`（源码分析才有）、`response_schema`。
-2. 读对应指令文档（`prompt_doc`），按它生成**一个 JSON 对象**：`request_id` 原样复制；`summary` 中文变更说明；`design` 是完整设计（不是差量）；含源码时还要 `analysis`。说明文字用中文，ID 用简短英文稳定标识，模块目录是不重叠的项目相对目录。`<skill-dir>/examples/` 里有三份曾成功导入的响应（源码分析、需求设计、继续调整）只示范格式；内容与 `request_id` 都不能照抄，示例里的说明文字偏长，篇幅以指令文档的字数限制为准。
-3. 把响应写到临时文件（不要写进 `<project>`），然后导入：
+2. 读对应指令文档（`prompt_doc`），按它生成**一个 JSON 对象**：`request_id` 原样复制；`summary` 中文变更说明；`design` 是完整设计（不是差量）；含源码时还要 `analysis`。说明文字用中文，ID 用简短英文稳定标识，模块目录是不重叠的项目相对目录。`<skill-dir>/examples/` 里有三份按当前指令写成并成功导入的响应（源码分析、需求设计、继续调整），篇幅和写法可以参照；内容与 `request_id` 不能照抄。
+3. 把响应写到临时文件（不要写进 `<project>`），先自检：
+   ```sh
+   python3 <skill-dir>/scripts/lint-response.py --request <request_file> --response <响应文件>
+   ```
+   `errors` 是指令文档的硬性要求（字数上限、依据缺失或重复、位置越界、禁止规则非空等），逐条修正后再跑一次；`warnings` 提示可能改写了未点名的对象、复述了行号或范围套话，逐条判断：与本次需求无关的对象改回原文，其余保留并在回复里一句话说明。自检通过后导入：
    ```sh
    archdesign proposal-import -project <project> -file <响应文件>
    ```
@@ -135,7 +139,8 @@ archdesign proposal-discard -project <project> -id <pending_proposal.id>
 
 ## 回复模板（每回合结束必须包含）
 
-- 本回合做了什么：请求类型、提案 ID、一句话摘要，或未做事的原因（原样转述的程序输出）。
+- 本回合做了什么：请求类型、提案 ID（前 12 位即可）、一句话摘要；不粘贴设计全文，用户在工作台看。未做事时给出原因，程序输出原样转述。
+- 措辞：提案在用户接受、确认前只是待审阅草稿，不说「已完成」「已生效」「已遵守」；自检的 `warnings` 决定保留时，一句话说明理由。
 - 工作台地址：`http://127.0.0.1:8090`（以脚本输出为准），当前项目应为 `<project>`。
 - 用户下一步在浏览器做什么：核对/接受并审阅确认（或接受并保存草稿后再审阅并确认）/选中对象导出调整请求。
 - 做完回来说什么：「继续」，或直接说修改意见/新需求。

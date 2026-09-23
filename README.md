@@ -59,7 +59,7 @@ go build -buildvcs=false -o /tmp/archdesign ./cmd/archdesign
 
 ### 与 coding agent 交换请求和提案
 
-程序不内置模型客户端，也不读取模型配置；推理、提示词和模型选择由外部 coding agent 自行管理。工作台和命令行只负责导出请求、校验响应并保存为待审阅提案。agent 可参考 [skills/interface_design/references](skills/interface_design/references/) 中的设计、源码分析与能力审查指令。
+程序不内置模型客户端，也不读取模型配置；推理、提示词和模型选择由外部 coding agent 自行管理。工作台和命令行只负责导出请求、校验响应并保存为待审阅提案。agent 可参考 [skills/interface_design/references](skills/interface_design/references/) 中的设计、源码分析与能力审查指令；三份指令统一为「输出契约、文字怎么写（含字数上限）、规则、边界」四段，说明文字会原样显示在模块节点、详情面板和确认窗口里，所以要求精简、只写需求或代码支持的内容、不复述行号与范围套话。
 
 | `kind` | 用途 | 请求内容 |
 | --- | --- | --- |
@@ -123,7 +123,7 @@ ln -s ../../.agents/skills/interface_design ~/.claude/skills/interface_design
 
 接受提案与确认版本只在浏览器完成，skill 不运行 `confirm` 与 `proposal-accept`；`proposal-discard` 只在用户明确要求放弃当前提案时运行。用户确认后，下一次唤醒发现 `confirmed.json` 的 `revision` 比规则文件标记块记录的新，skill 把设计遵循约束写入目标项目的规则文件：已有 `CLAUDE.md` 或 `AGENTS.md` 就写已有的（两个都有则都写），都没有就新建 `AGENTS.md`；使用 `<!-- interface_design:begin revision=… -->` 与 `<!-- interface_design:end -->` 之间的块幂等替换，块外内容不动，不提交 git。这段约束是给后续会话的指令，程序只能硬检查禁止的直接包依赖，不能据此声称设计被强制遵守。
 
-辅助脚本都带 `--help`：`scripts/state.py` 输出阶段与下一步；`scripts/export-request.py` 组装意图并导出请求；`scripts/write-rules.py` 写规则文件标记块；`scripts/start-workbench.sh` 启动或复用工作台。
+辅助脚本都带 `--help`：`scripts/state.py` 输出阶段与下一步；`scripts/export-request.py` 组装意图并导出请求；`scripts/lint-response.py` 在导入前对照请求文件自检响应（字数上限、依据条目、位置有效性、无关对象是否被改写等，程序导入时不检查这些）；`scripts/write-rules.py` 写规则文件标记块；`scripts/start-workbench.sh` 启动或复用工作台。
 
 ## 命令行快速运行
 
@@ -284,7 +284,7 @@ coding agent 可以直接调用这两个命令完成审查闭环，审查指令�
 | `workbench` | 本地 HTTP 接口、嵌入式浏览器页面、同源和会话边界 |
 | `scripts/workbench-journey.js` | 使用真实浏览器验证编辑、确认与检查旅程 |
 | `scripts/fixed-agent.js` | 浏览器回归中在页面内扮演 coding agent 的固定响应替身，不代表真实模型效果 |
-| `skills/interface_design` | coding agent 的回合制 skill：SKILL.md、状态/导出/规则写入/工作台启动脚本、`references/` 下的三份 agent 指令与响应格式样例；验收见 [docs/agent-skill.md](docs/agent-skill.md)，分发见 [docs/skill-distribution.md](docs/skill-distribution.md) |
+| `skills/interface_design` | coding agent 的回合制 skill：SKILL.md、状态/导出/响应自检/规则写入/工作台启动脚本、`references/` 下的三份 agent 指令与按指令写成并导入验证过的响应样例；验收见 [docs/agent-skill.md](docs/agent-skill.md)，分发见 [docs/skill-distribution.md](docs/skill-distribution.md) |
 
 ```sh
 go test ./...

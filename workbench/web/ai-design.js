@@ -1,5 +1,5 @@
 import { $, api, clone, escapeHTML as e, download, toast, confirmAction } from './ui.js';
-import { changes, changeLabel } from './design-graph.js';
+import { changes, changeLabel, fieldChangesHTML } from './design-graph.js';
 import { renderAnalysis } from './initial-analysis.js';
 
 // 提案与草稿分开保存。刷新可恢复待审阅提案，接受之后才写入磁盘草稿。
@@ -90,7 +90,8 @@ export function initAI(state, {renderDesign, renderTop, errorNotice, invalidate,
     if (!p) { $('#proposal-review').innerHTML = ''; reviewHTML = ''; return; }
     const diff = changes(p.before,p.after);
     const baselineDiff = p.baseline ? changes(p.baseline.design,p.after) : null;
-    const entries = items => items.map(item => `<div class="diff-entry change-${item.status}"><strong>${changeLabel(item.status)}${item.label} · ${e(item.id)}</strong>${item.before ? `<p><span>原约定</span> ${e(JSON.stringify(item.before))}</p>` : ''}${item.after ? `<p><span>新约定</span> ${e(JSON.stringify(item.after))}</p>` : ''}</div>`).join('');
+    // 修改的对象只展示变化的字段（旧值划掉、新值突出），新增或删除的对象列出全部字段。
+    const entries = items => items.map(item => `<div class="diff-entry change-${item.status}"><strong>${changeLabel(item.status)}${item.label} · ${e(item.id)}</strong>${fieldChangesHTML(item)}</div>`).join('');
     const html = `<div class="proposal-heading"><div><h2>审阅 AI 提案</h2><p>${e(p.summary)}</p></div><span class="tag warning">${diff.length} 处变更 · 尚未接受</span></div>
       <div class="proposal-tools"><div class="segmented" aria-label="提案对照"><button type="button" id="proposal-after" aria-pressed="${!state.proposalOriginal}" class="${!state.proposalOriginal ? 'selected' : ''}">修改后与变更</button><button type="button" id="proposal-before" aria-pressed="${!!state.proposalOriginal}" class="${state.proposalOriginal ? 'selected' : ''}">修改前</button></div><div class="button-row"><details id="proposal-more" class="action-menu"><summary>提案工具</summary><div class="action-menu-panel"><button type="button" id="proposal-download">下载提案</button><button type="button" id="proposal-discard" ${state.aiBusy || state.busy ? 'disabled' : ''}>放弃提案</button></div></details><button type="button" id="proposal-accept" ${writeDisabled ? 'disabled' : ''}>接受并保存草稿</button><button type="button" id="proposal-accept-review" class="primary" ${writeDisabled ? 'disabled' : ''}>接受并审阅确认</button></div></div>
       <details class="proposal-diff"><summary>${baselineDiff ? '相对已保存草稿的变更' : '逐项查看变更'}（${diff.length}）</summary>${entries(diff) || (p.request.source ? '<p>设计内容没有变化；接受后仍可确认本次源码依据。</p>' : '<p>设计内容没有变化，可以继续说明修改意图。</p>')}</details>${baselineDiff ? `<details class="proposal-baseline-diff"><summary>相对已确认基准的变更（${baselineDiff.length}）</summary><p>对照生成时的基准版本 <code>${e(p.expected_revision)}</code>。旧禁止规则属于设计约束，本次现状提案不自动保留；可在接受后编辑草稿恢复需要的规则。</p>${entries(baselineDiff) || '<p>设计内容与旧基准相同，本次仍保存新的源码依据。</p>'}</details>` : ''}<p class="graph-legend"><span class="change-added">新增</span><span class="change-modified">修改 / 迁移</span><span class="change-removed">删除</span>图上保留被删除对象的轮廓；详细差异见上方。</p>`;

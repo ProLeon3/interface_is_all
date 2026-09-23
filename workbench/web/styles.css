@@ -2124,6 +2124,11 @@ input[type=checkbox] {
 .diff-entry {padding:12px 0;border-bottom:1px solid var(--line);}
 .diff-entry p {overflow-wrap:anywhere;white-space:pre-wrap;margin:6px 0;}
 .diff-entry p span {font-weight:600;}
+.diff-entry del,.diff-list del {color:#9d6756;}
+.diff-entry ins,.diff-list ins {color:#496f3c;text-decoration:none;}
+.diff-entry em,.diff-list em {color:#7a866e;font-style:normal;}
+.diff-list p {margin:4px 0 0;white-space:pre-wrap;}
+.diff-list p span {font-weight:600;}
 .graph-legend {display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin:14px 0 0;color:#596850;}
 .change-added {color:#2d7050;}
 .change-modified {color:#805214;}
