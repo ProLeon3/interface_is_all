@@ -41,7 +41,7 @@ function errorNotice(error) {
 function updateConnection(online) {
   state.online = online;
   document.body.classList.toggle('offline', !online);
-  $('#connection-status').textContent = online ? '已连接 · 每 3 秒同步' : '连接中断 · 正在重试';
+  $('#connection-status').textContent = online ? '已连接' : '连接中断 · 正在重试';
 }
 
 // 对确认弹窗也保留打开时的版本；外部更新会使后端确认失败，要求重新审阅。
@@ -107,8 +107,10 @@ function renderTop() {
   const sameBaseline = !!current && current.design_hash === state.server?.draft_hash && !state.dirty && !pendingAnalysis;
   $('#conflict-banner').hidden = !state.conflict;
   $('#save-state').textContent = state.switching ? '正在切换项目…' : !state.online ? '连接中断，编辑已保留' : state.conflict ? '版本冲突，请先处理上方提示' : state.aiBusy ? '正在处理上下文与提案' : state.busy ? '正在保存…' : confirmed ? '已确认版本 · 只读' : state.proposal ? '提案待审阅 · 接受后保存为草稿' : state.dirty ? '有修改待保存' : pendingAnalysis && analysis.withdrawn ? '分析已撤回，需重新分析后确认' : sameBaseline ? '草稿与已确认基准一致' : state.server?.draft ? '草稿已保存 · 待确认' : '从代码或需求开始，也可手动创建模块';
+  const tone = !state.online || state.conflict ? 'danger' : state.dirty || state.proposal || pendingAnalysis || (state.server?.draft && !sameBaseline && !confirmed) ? 'warn' : sameBaseline || confirmed ? 'ok' : 'neutral';
+  $('#save-state').dataset.tone = tone;
   // 流程提示只解释真实依赖，不把可往返的工作区变成必须逐步通过的向导。
-  $('#design-flow-hint').textContent = current ? sameBaseline && !state.proposal ? '在编程工具中实现后回来检查；已有代码可直接进入「代码检查」。' : '新草稿确认前，代码检查仍使用已确认基准。' : state.server?.initial_analysis_available ? '在 coding agent 中分析源码 → 在此审阅确认 → 代码检查。' : '确认设计 → 在编程工具中实现 → 回来检查。';
+  $('#design-flow-hint').textContent = current ? sameBaseline && !state.proposal ? '' : '新草稿确认前，代码检查仍使用已确认基准。' : state.server?.initial_analysis_available ? '在 coding agent 中分析源码 → 在此审阅确认 → 代码检查。' : '确认设计 → 在编程工具中实现 → 回来检查。';
   // 保存、确认、交接各占一个阶段；接受提案在提案面板中保持独立。
   $('#save-draft').hidden = confirmed || !!state.proposal || !state.dirty;
   $('#review-design').hidden = confirmed || !!state.proposal || state.dirty || !state.server?.draft || sameBaseline;
@@ -121,7 +123,9 @@ function renderTop() {
   if (handoff.parentElement !== handoffParent) handoffParent.append(handoff);
   handoff.hidden = !current;
   handoff.classList.toggle('primary',handoffPrimary);
-  $('#version-summary').textContent = current ? `基准 ${short(current.revision)} · ${current.confirmed_by}` : '尚无已确认设计';
+  // 版本号放进「已确认」分段按钮；确认人和时间放在悬停提示里，不占页首宽度。
+  $('#version-summary').textContent = current ? short(current.revision).slice(0,6) : '';
+  $('#confirmed-view').title = current ? `基准 ${current.revision}\n${current.confirmed_by} 于 ${date(current.confirmed_at)} 确认` : '尚无已确认设计';
   $('#confirmed-view').disabled = !current;
   $('#draft-view').classList.toggle('selected', state.view === 'draft');
   $('#confirmed-view').classList.toggle('selected', state.view === 'confirmed');
@@ -129,20 +133,23 @@ function renderTop() {
   $('#confirmed-view').setAttribute('aria-pressed', String(state.view === 'confirmed'));
   $('#add-module').disabled = !state.server || state.switching || readonly();
   $('#choose-project').disabled = !sessionReady || state.busy || state.aiBusy || state.scanning || state.switching || state.layoutSaving;
-  $('#draft-hash').textContent = state.view === 'confirmed' ? `已确认于 ${date(current?.confirmed_at)}` : state.server?.draft_hash ? `草稿指纹 ${short(state.server.draft_hash)}` : '';
+  $('#draft-hash').textContent = state.view === 'confirmed' ? `已确认于 ${date(current?.confirmed_at)}` : state.server?.draft_hash ? `草稿 ${short(state.server.draft_hash).slice(0,6)}` : '';
   for (const id of ['run-check','review-request','review-import']) $('#' + id).disabled = !state.online || !current || state.scanning || state.switching;
   // 未确认时只有起步引导；已有基准时始终可检查，未确认的新草稿不阻断检查。
   $('#check-onboarding').hidden = !!current;
   for (const id of ['run-check','check-tools','check-results']) $('#' + id).hidden = !current;
-  $('#run-check').textContent = state.scanning ? '正在检查…' : '运行依赖检查 ↗';
-  $('#check-baseline').textContent = current ? `检查基准 ${short(current.revision)} · ${current.confirmed_by} 于 ${date(current.confirmed_at)} 确认` : '请先在架构设计中保存并确认一个版本。';
+  $('#run-check').textContent = state.scanning ? '正在检查…' : '运行依赖检查';
+  $('#check-baseline').textContent = current ? `检查基准 ${short(current.revision).slice(0,6)} · ${new Date(current.confirmed_at).toLocaleDateString('zh-CN')} 确认` : '请先在架构设计中保存并确认一个版本。';
+  $('#check-baseline').title = current ? `${current.revision}\n${current.confirmed_by} 于 ${date(current.confirmed_at)} 确认` : '';
   ai?.render();
 }
 
 function renderProjectIdentity(remote) {
   $('#project-name').textContent = remote.project.name;
-  $('#project-path').textContent = remote.project.path;
-  $('#breadcrumb-project').textContent = remote.project.name;
+  // 路径中间省略：保留根部与最后两级目录，完整路径见悬停提示
+  const parts = remote.project.path.split('/').filter(Boolean);
+  $('#project-path').textContent = parts.length > 4 ? `/${parts[0]}/…/${parts.slice(-2).join('/')}` : remote.project.path;
+  $('#project-path').title = remote.project.path;
   $('#connected-path').textContent = remote.project.path;
   document.title = `${remote.project.name} · Interface 架构工作台`;
 }
@@ -171,7 +178,7 @@ function chooseProject() {
         state.observations = observations; pendingNodes = {}; layoutVersion++;
         try {sessionStorage.setItem('interface-project-path',remote.project.path);} catch { /* 禁用浏览器存储时仍允许正常切换。 */ }
         $('#notices').innerHTML = ''; $('#sync-error').hidden = true;
-        $('#layout-status').textContent = '布局单独保存，不改变设计版本';
+        $('#layout-status').textContent = '';
         updateConnection(true); renderProjectIdentity(remote); showPage('design'); renderDesign(); refreshReports();
         await ai.restore();
         toast(`已切换到 ${remote.project.name}`);
@@ -202,12 +209,61 @@ function renderIndex() {
   $('#module-index').innerHTML = displayed().modules.map(module => `<button type="button" class="module-link ${module.id === state.selected ? 'selected' : ''}" data-module="${e(module.id)}">${e(module.id)}</button>`).join('');
 }
 
+// 分层布局：模块的列号取「最长调用链」深度，同列按原顺序自上而下排列，行高按接口数估算。
+function layeredPoints() {
+  const d = graph(), owner = new Map(d.interfaces.map(item => [item.id,item.module_id]));
+  const calls = new Map(d.modules.map(module => [module.id,new Set()]));
+  for (const link of d.collaborations || []) { const to = owner.get(link.interface_id); if (to && to !== link.from && calls.has(link.from)) calls.get(link.from).add(to); }
+  const depth = new Map(), visiting = new Set();
+  const walk = id => {
+    if (depth.has(id)) return depth.get(id);
+    if (visiting.has(id)) return 0; // 环路按同层处理，避免无限递归
+    visiting.add(id);
+    let level = 0;
+    for (const [from,targets] of calls) if (targets.has(id)) level = Math.max(level,walk(from)+1);
+    visiting.delete(id); depth.set(id,level); return level;
+  };
+  const columns = [], points = {};
+  for (const module of d.modules) (columns[walk(module.id)] ||= []).push(module);
+  columns.forEach((column,x) => {
+    let y = 40;
+    for (const module of column || []) {
+      points[module.id] = {x:40 + x * 340, y};
+      y += 170 + Math.max(1,d.interfaces.filter(item => item.module_id === module.id).length) * 38 + 44;
+    }
+  });
+  return points;
+}
+
 function pointFor(module, index) {
   const saved = Object.hasOwn(state.layout.nodes,module.id) ? state.layout.nodes[module.id] : null;
-  const width = $('#canvas-scroll').clientWidth;
-  const columns = Math.max(1, Math.floor((width - 24) / 400));
-  return saved ? {x:Math.min(5000, Math.max(24, saved.x)), y:Math.min(5000, Math.max(24, saved.y))} : {x:34 + index % columns * 400, y:34 + Math.floor(index / columns) * Math.max(300,180 + Math.max(0,...graph().modules.map(m => graph().interfaces.filter(a => a.module_id === m.id).length))*40)};
+  if (saved) return {x:Math.min(5000, Math.max(24, saved.x)), y:Math.min(5000, Math.max(24, saved.y))};
+  return layeredPoints()[module.id] || {x:40, y:40 + index * 260};
 }
+
+// 画布缩放：默认自动适配可视区域；用户手动缩放后保持该比例，点「适配」恢复自动。
+const zoom = {value:1, fit:true};
+function applyZoom() {
+  const scroll = $('#canvas-scroll'), canvas = $('#canvas'), W = scroll.clientWidth, H = scroll.clientHeight;
+  const nodes = [...document.querySelectorAll('[data-node]')];
+  let z = zoom.value, tx = 0, ty = 0, right = canvas.offsetWidth, bottom = canvas.offsetHeight;
+  if (nodes.length) {
+    // 包围盒同时覆盖模块卡片与绕行的连线通道
+    const edges = $('#edges').getBBox();
+    const box = {x:Math.min(...nodes.map(n => n.offsetLeft)), y:Math.min(...nodes.map(n => n.offsetTop)), r:Math.max(...nodes.map(n => n.offsetLeft+n.offsetWidth)), b:Math.max(...nodes.map(n => n.offsetTop+n.offsetHeight))};
+    if (edges.width) {box.x = Math.min(box.x,edges.x); box.y = Math.min(box.y,edges.y); box.r = Math.max(box.r,edges.x+edges.width); box.b = Math.max(box.b,edges.y+edges.height);}
+    const w = box.r-box.x, h = box.b-box.y;
+    if (zoom.fit) z = zoom.value = Math.max(.5, Math.min(1, (W-64)/w, (H-64)/h));
+    if (zoom.fit) {tx = Math.max(24, (W - w*z)/2) - box.x*z; ty = Math.max(24, (H - h*z)/2) - box.y*z;}
+    right = box.r*z + tx + 32; bottom = box.b*z + ty + 32;
+  }
+  canvas.dataset.zoom = z;
+  canvas.style.transform = `translate(${tx}px,${ty}px) scale(${z})`;
+  $('#canvas-stage').style.width = `${Math.max(right, W)}px`; $('#canvas-stage').style.height = `${Math.max(bottom, H)}px`;
+  $('#zoom-reset').textContent = `${Math.round(z*100)}%`;
+  $('#zoom-fit').classList.toggle('active', zoom.fit);
+}
+function setZoom(value) { zoom.fit = value === 'fit'; if (!zoom.fit) zoom.value = Math.max(.5, Math.min(1.5, Math.round(value*10)/10)); renderCanvas(); }
 
 function renderCanvas() {
   // 重绘前记录控件类型与稳定 ID，接口和 SVG 连线不能退回模块按钮或丢失键盘焦点。
@@ -220,11 +276,11 @@ function renderCanvas() {
   const points = Object.fromEntries(union.modules.map((module,index) => [module.id,pointFor(module,index)]));
   renderNodes(d,comparison(),points,state.selected,state.selection,flags());
   const nodes = [...document.querySelectorAll('[data-node]')];
-  const maxX = Math.max($('#canvas-scroll').clientWidth,...nodes.map(n => n.offsetLeft+n.offsetWidth+190));
-  const maxY = Math.max($('#canvas-scroll').clientHeight || 423,...nodes.map(n => n.offsetTop+n.offsetHeight+45));
+  const maxX = Math.max(0,...nodes.map(n => n.offsetLeft+n.offsetWidth+190));
+  const maxY = Math.max(0,...nodes.map(n => n.offsetTop+n.offsetHeight+45));
   $('#canvas').style.width = `${maxX}px`; $('#canvas').style.height = `${maxY}px`;
   $('#edges').setAttribute('width',maxX); $('#edges').setAttribute('height',maxY);
-  drawEdges();
+  drawEdges(); applyZoom();
   if (focusID) [...$('#canvas').querySelectorAll(`[data-${focusKind}]`)].find(node => node.dataset[focusKind] === focusID)?.focus({preventScroll:true});
 }
 
@@ -288,7 +344,7 @@ function renderInspector() {
   if (!module) { $('#inspector').innerHTML = `<div class="inspector-head"><h2>设计详情</h2></div><div class="inspector-empty"><h2>把边界说清楚</h2><p>选择画布中的模块，查看职责、对外能力和依赖限制。</p><p>设计由你确认，模块内部如何实现交给编程工具。</p></div>`; return; }
   const interfaces = d.interfaces.filter(item => item.module_id === module.id);
   const rules = d.forbidden_dependencies.filter(item => item.from === module.id || item.to === module.id);
-  $('#inspector').innerHTML = `<div class="inspector-head"><h2>模块详情</h2><span class="tag ${readonly() ? 'neutral' : ''}">${state.view === 'confirmed' ? '已确认 · 只读' : readonly() ? '提案预览 · 只读' : '编辑草稿'}</span></div><div class="inspector-body">${readonly() ? `<div class="readonly-note">${readonlyHint()}</div>` : ''}<label class="field"><span>模块 ID <small>稳定标识，不随说明改变</small></span><code>${e(module.id)}</code></label>${field('模块目录','module-root',module.root,{readonly:readonly(), hint:'项目相对路径'})}${field('职责与边界','module-responsibility',module.responsibility,{area:true,readonly:readonly()})}<section class="inspector-section"><div class="section-title"><h3>对外能力 <span class="muted">${interfaces.length}</span></h3>${!readonly() ? '<button type="button" class="text-button" data-action="new-interface">＋ 添加</button>' : ''}</div>${interfaces.map(item => `<div class="capability-item"><div class="capability-title"><strong>${e(item.name)}</strong>${!readonly() ? `<button type="button" class="small text-button" data-edit-interface="${e(item.id)}" aria-label="编辑 ${e(item.name)}">编辑</button>` : ''}</div><code>${e(item.id)}</code><p>${e(item.description)}</p>${item.semantics ? `<dl>${[['inputs','输入'],['outputs','输出'],['errors','错误']].filter(([key]) => item.semantics[key]).map(([key,label]) => `<dt>${label}</dt><dd>${e(item.semantics[key])}</dd>`).join('')}</dl>` : ''}</div>`).join('') || '<p class="empty-note">还没有对外能力，添加协作所需的接口约定。</p>'}</section>${objectEvidence(state,'module',module.id)}${collaborationSection(d,module.id)}<section class="inspector-section"><div class="section-title"><h3>依赖限制 <span class="muted">${rules.length}</span></h3>${!readonly() ? '<button type="button" class="text-button" data-action="new-rule">＋ 添加</button>' : ''}</div>${rules.map(rule => `<div class="rule-item"><strong>${e(rule.from)} → ${e(rule.to)}</strong><p>禁止依赖 · ${e(rule.reason)}</p>${!readonly() ? `<button type="button" class="text-button small" data-edit-rule="${e(rule.id)}" aria-label="编辑规则 ${e(rule.id)}">编辑规则</button>` : ''}</div>`).join('') || '<p class="empty-note">没有相关禁止规则，依赖默认允许。</p>'}</section>${!readonly() ? '<button type="button" class="text-button danger small delete-module" data-action="delete-module">删除此模块</button>' : ''}</div>`;
+  $('#inspector').innerHTML = `<div class="inspector-head"><h2><span class="inspector-kind">模块</span><code>${e(module.id)}</code></h2>${readonly() ? `<span class="tag neutral">${state.view === 'confirmed' ? '已确认 · 只读' : '提案预览 · 只读'}</span>` : ''}</div><div class="inspector-body">${readonly() ? `<div class="readonly-note">${readonlyHint()}</div>` : ''}${field('模块目录','module-root',module.root,{readonly:readonly(), hint:'项目相对路径'})}${field('职责与边界','module-responsibility',module.responsibility,{area:true,readonly:readonly()})}<section class="inspector-section"><div class="section-title"><h3>对外能力 <span class="muted">${interfaces.length}</span></h3>${!readonly() ? '<button type="button" class="text-button" data-action="new-interface">＋ 添加</button>' : ''}</div>${interfaces.map(item => `<div class="capability-item"><div class="capability-title"><strong>${e(item.name)}</strong>${!readonly() ? `<button type="button" class="small text-button" data-edit-interface="${e(item.id)}" aria-label="编辑 ${e(item.name)}">编辑</button>` : ''}</div><code>${e(item.id)}</code><p>${e(item.description)}</p>${item.semantics ? `<dl>${[['inputs','输入'],['outputs','输出'],['errors','错误']].filter(([key]) => item.semantics[key]).map(([key,label]) => `<dt>${label}</dt><dd>${e(item.semantics[key])}</dd>`).join('')}</dl>` : ''}</div>`).join('') || '<p class="empty-note">还没有对外能力，添加协作所需的接口约定。</p>'}</section>${objectEvidence(state,'module',module.id)}${collaborationSection(d,module.id)}<section class="inspector-section"><div class="section-title"><h3>依赖限制 <span class="muted">${rules.length}</span></h3>${!readonly() ? '<button type="button" class="text-button" data-action="new-rule">＋ 添加</button>' : ''}</div>${rules.map(rule => `<div class="rule-item"><strong>${e(rule.from)} → ${e(rule.to)}</strong><p>禁止依赖 · ${e(rule.reason)}</p>${!readonly() ? `<button type="button" class="text-button small" data-edit-rule="${e(rule.id)}" aria-label="编辑规则 ${e(rule.id)}">编辑规则</button>` : ''}</div>`).join('') || '<p class="empty-note">没有相关禁止规则，依赖默认允许。</p>'}</section>${!readonly() ? '<button type="button" class="text-button danger small delete-module" data-action="delete-module">删除此模块</button>' : ''}</div>`;
   for (const [name, key] of [['module-root','root'],['module-responsibility','responsibility']]) {
     $(`[name=${name}]`).oninput = event => {
       module[key] = event.target.value;
@@ -311,6 +367,7 @@ function selectModule(id) {
 
 function showPage(page) {
   state.page = page;
+  document.body.dataset.page = page;
   for (const name of ['design','checks','connect']) $(`#${name}-page`).hidden = name !== page;
   // 页面中的跳转 CTA 也使用 data-page，但只有导航入口拥有活动态。
   document.querySelectorAll('[data-navigation][data-page]').forEach(button => { const active = button.dataset.page === page; button.classList.toggle('active',active); if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
@@ -436,7 +493,8 @@ $('#nodes').addEventListener('pointerdown', event => {
   let moved = false;
   const move = next => {
     moved = true;
-    const position = {x:Math.max(24, Math.min(5000,point.x + next.clientX-start.x)),y:Math.max(24, Math.min(5000,point.y + next.clientY-start.y))};
+    const z = zoom.value;
+    const position = {x:Math.max(24, Math.min(5000,point.x + (next.clientX-start.x)/z)),y:Math.max(24, Math.min(5000,point.y + (next.clientY-start.y)/z))};
     state.layout.nodes[module.id] = position;
     pendingNodes[module.id] = position;
     node.style.left = `${position.x}px`; node.style.top = `${position.y}px`; drawEdges();
@@ -444,7 +502,8 @@ $('#nodes').addEventListener('pointerdown', event => {
   const finish = () => {
     handle.removeEventListener('pointermove',move); handle.removeEventListener('pointerup',finish); handle.removeEventListener('pointercancel',finish);
     state.dragging = false; node.classList.remove('dragging');
-    if (moved) {renderCanvas();queueLayout();}
+    // 拖动结束后固定当前比例，避免自动适配让刚放下的模块跳开。
+    if (moved) {zoom.fit = false;renderCanvas();queueLayout();}
   };
   handle.addEventListener('pointermove',move); handle.addEventListener('pointerup',finish); handle.addEventListener('pointercancel',finish);
 });
@@ -527,9 +586,14 @@ $('#save-draft').onclick = saveDraft;
 $('#review-design').onclick = reviewDesign;
 $('#draft-view').onclick = () => {state.view = 'draft';renderDesign();};
 $('#confirmed-view').onclick = () => {state.view = 'confirmed';renderDesign();};
+$('#zoom-in').onclick = () => setZoom(zoom.value + .1);
+$('#zoom-out').onclick = () => setZoom(zoom.value - .1);
+$('#zoom-reset').onclick = () => setZoom(1);
+$('#zoom-fit').onclick = () => setZoom('fit');
 $('#arrange').onclick = () => {
   for (const module of displayed().modules) delete state.layout.nodes[module.id];
   for (const [index,module] of displayed().modules.entries()) state.layout.nodes[module.id] = pointFor(module,index);
+  zoom.fit = true;
   for (const module of displayed().modules) pendingNodes[module.id] = state.layout.nodes[module.id];
   renderCanvas();queueLayout();
 };

@@ -4,6 +4,13 @@ export const $ = (selector, root = document) => root.querySelector(selector);
 export const clone = value => structuredClone(value);
 export const short = value => value ? value.slice(0, 9) : '尚未确认';
 export const date = value => value ? new Date(value).toLocaleString('zh-CN', {hour12: false}) : '—';
+// 相对时间用于列表与摘要，悬停提示保留精确时间。
+export function ago(value) {
+  if (!value) return '—';
+  const minutes = Math.round((Date.now() - new Date(value)) / 60000);
+  const text = minutes < 1 ? '刚刚' : minutes < 60 ? `${minutes} 分钟前` : minutes < 1440 ? `${Math.round(minutes/60)} 小时前` : `${Math.round(minutes/1440)} 天前`;
+  return `<time datetime="${escapeHTML(value)}" title="${escapeHTML(date(value))}">${text}</time>`;
+}
 
 let token = '';
 let projectPath = '';

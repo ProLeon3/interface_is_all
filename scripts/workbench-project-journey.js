@@ -65,7 +65,7 @@ async page => {
   await page.getByRole('button',{name:/^代码检查/}).click();
   await page.locator('#run-check:not([disabled])').waitFor();
   await page.locator('#run-check').click();
-  await page.locator('.result-summary').getByText('本次未发现禁止依赖',{exact:true}).waitFor();
+  await page.locator('.status-cell').getByText('本次未发现禁止依赖',{exact:true}).waitFor();
   const report = await page.evaluate(async () => (await fetch('/api/observations',{headers:{'X-Workbench-Project':encodeURIComponent(document.querySelector('#project-path').textContent)}})).json());
   assert(report.check.report.design_revision === (await readSelected()).confirmed.revision,'检查没有使用所选项目的版本');
   assert((await readDefault()).confirmed?.revision === original.confirmed?.revision,'确认新项目改变了初始项目');
